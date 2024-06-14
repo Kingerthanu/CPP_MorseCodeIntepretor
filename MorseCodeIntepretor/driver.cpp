@@ -1,322 +1,140 @@
 #include <iostream>
 #include <windows.h>
+#include <mmdeviceapi.h>
+#include <audioclient.h>
+#include <audiopolicy.h>
+#include <chrono>
+#include <thread>
+#include <vector>
+#include <atomic>
+#include <conio.h>
+#include <comdef.h>
 
+using namespace std;
 
-void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize)
-{
+const double PI = 3.141592653589793238460;
+const float THRESHOLD = 0.1f; // Amplitude threshold for Morse code detection
 
+// Morse timing constants
+static const float dotWait = 100.0f;
+static const float dashWait = dotWait * 3.0f;
+static const float spaceWait = dashWait;
+
+std::atomic<bool> stopThreads(false);
+
+void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize) {
     unsigned int newSize = oldSize + chunkSize;
     char* tmpHandler = toEnlargen;
     toEnlargen = new char[newSize];
-    
+
     unsigned int characterStep = 0, insertStep = 0;
-    
 
-    while (characterStep < oldSize)
-    {
-
+    while (characterStep < oldSize) {
         toEnlargen[characterStep] = tmpHandler[characterStep++];
-
     }
 
     delete[] tmpHandler;
-    
 
-    while (insertStep < chunkSize)
-    {
-
+    while (insertStep < chunkSize) {
         toEnlargen[characterStep + insertStep] = toInsert[insertStep++];
-
     }
 
     oldSize = newSize;
-    
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Tempo Settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// Wait 200ms Between Individual Units
-static const float dotWait = 100.0f;
-
-// Wait 3 Unit-Long Beep For Dashes
-static const float dashWait = (dotWait * 3.0f);
-
-// Wait 7 Unit-Long Beep For Spaces
-static const float spaceWait = dashWait;
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-char* alphabetToMorseBinary(char*& toConvert)
-{
+char* alphabetToMorse(char*& toConvert) {
     int messageLength = 0;
 
-    // Manually count the characters until the null terminator
-    while (toConvert[messageLength] != '\0')
-    {
+    while (toConvert[messageLength] != '\0') {
         messageLength++;
     }
 
-    char* morseBuffer = new char[0];
-
-    // If Empty Leave Early As Dont Need To Add Anything
-    if (messageLength == 0)
-    {
-        return morseBuffer;
-    }
-
-    unsigned int listSize = 0;
-
-    // Convert each character
-    for (unsigned int cIndex = 0; cIndex < messageLength; cIndex++)
-    {
-
-        // . => 1   |   - => 000
-        switch (toConvert[cIndex])
-        {
-            case 'A':
-            case 'a':
-                enlargeList(morseBuffer, listSize, "1000 ", 5);
-                break;
-            case 'B':
-            case 'b':
-                enlargeList(morseBuffer, listSize, "000111 ", 7);
-                break;
-            case 'C':
-            case 'c':
-                enlargeList(morseBuffer, listSize, "00010001 ", 9);
-                break;
-            case 'D':
-            case 'd':
-                enlargeList(morseBuffer, listSize, "00011 ", 6);
-                break;
-            case 'E':
-            case 'e':
-                enlargeList(morseBuffer, listSize, "1 ", 2);
-                break;
-            case 'F':
-            case 'f':
-                enlargeList(morseBuffer, listSize, "110001 ", 7);
-                break;
-            case 'G':
-            case 'g':
-                enlargeList(morseBuffer, listSize, "0000001 ", 8);
-                break;
-            case 'H':
-            case 'h':
-                enlargeList(morseBuffer, listSize, "1111 ", 5);
-                break;
-            case 'I':
-            case 'i':
-                enlargeList(morseBuffer, listSize, "11 ", 3);
-                break;
-            case 'J':
-            case 'j':
-                enlargeList(morseBuffer, listSize, "10000000 ", 9);
-                break;
-            case 'K':
-            case 'k':
-                enlargeList(morseBuffer, listSize, "000100 ", 7);
-                break;
-            case 'L':
-            case 'l':
-                enlargeList(morseBuffer, listSize, "100011 ", 7);
-                break;
-            case 'M':
-            case 'm':
-                enlargeList(morseBuffer, listSize, "0000 ", 5);
-                break;
-            case 'N':
-            case 'n':
-                enlargeList(morseBuffer, listSize, "0001 ", 5);
-                break;
-            case 'O':
-            case 'o':
-                enlargeList(morseBuffer, listSize, "0000000 ", 8);
-                break;
-            case 'P':
-            case 'p':
-                enlargeList(morseBuffer, listSize, "1000001 ", 8);
-                break;
-            case 'Q':
-            case 'q':
-                enlargeList(morseBuffer, listSize, "000001000 ", 10);
-                break;
-            case 'R':
-            case 'r':
-                enlargeList(morseBuffer, listSize, "10001 ", 6);
-                break;
-            case 'S':
-            case 's':
-                enlargeList(morseBuffer, listSize, "111 ", 4);
-                break;
-            case 'T':
-            case 't':
-                enlargeList(morseBuffer, listSize, "000 ", 5);
-                break;
-            case 'U':
-            case 'u':
-                enlargeList(morseBuffer, listSize, "1100 ", 5);
-                break;
-            case 'V':
-            case 'v':
-                enlargeList(morseBuffer, listSize, "111000 ", 7);
-                break;
-            case 'W':
-            case 'w':
-                enlargeList(morseBuffer, listSize, "100000 ", 7);
-                break;
-            case 'X':
-            case 'x':
-                enlargeList(morseBuffer, listSize, "00011000 ", 9);
-                break;
-            case 'Y':
-            case 'y':
-                enlargeList(morseBuffer, listSize, "00010000 ", 9);
-                break;
-            case 'Z':
-            case 'z':
-                enlargeList(morseBuffer, listSize, "00000011 ", 9);
-                break;
-            default:
-                // Handle other characters or do nothing
-                break;
-        }
-    }
-
-    enlargeList(morseBuffer, listSize, "\0", 1);
-
-    return morseBuffer;
-
-};
-
-char* alphabetToMorse(char*& toConvert)
-{
-
-    int messageLength = 0;
-
-    // Manually count the characters until the null terminator
-    while (toConvert[messageLength] != '\0')
-    {
-        messageLength++;
-    }
-
-    // If empty, leave early as there's nothing to convert
-    if (messageLength == 0)
-    {
+    if (messageLength == 0) {
         return nullptr;
     }
 
-    char* morseBuffer = new char[0];
+    char* morseBuffer = new char[1];
+    morseBuffer[0] = '\0';
     unsigned int listSize = 0;
 
-    // Convert each character
-    for (unsigned int cIndex = 0; cIndex < messageLength; cIndex++)
-    {
-        // . => .   |   - => -
-        switch (toConvert[cIndex])
-        {
-        case 'A':
-        case 'a':
+    for (unsigned int cIndex = 0; cIndex < messageLength; cIndex++) {
+        switch (toConvert[cIndex]) {
+        case 'A': case 'a':
             enlargeList(morseBuffer, listSize, ".- ", 3);
             break;
-        case 'B':
-        case 'b':
+        case 'B': case 'b':
             enlargeList(morseBuffer, listSize, "-... ", 5);
             break;
-        case 'C':
-        case 'c':
+        case 'C': case 'c':
             enlargeList(morseBuffer, listSize, "-.-. ", 5);
             break;
-        case 'D':
-        case 'd':
+        case 'D': case 'd':
             enlargeList(morseBuffer, listSize, "-.. ", 4);
             break;
-        case 'E':
-        case 'e':
+        case 'E': case 'e':
             enlargeList(morseBuffer, listSize, ". ", 2);
             break;
-        case 'F':
-        case 'f':
+        case 'F': case 'f':
             enlargeList(morseBuffer, listSize, "..-. ", 5);
             break;
-        case 'G':
-        case 'g':
+        case 'G': case 'g':
             enlargeList(morseBuffer, listSize, "--. ", 4);
             break;
-        case 'H':
-        case 'h':
+        case 'H': case 'h':
             enlargeList(morseBuffer, listSize, ".... ", 5);
             break;
-        case 'I':
-        case 'i':
+        case 'I': case 'i':
             enlargeList(morseBuffer, listSize, ".. ", 3);
             break;
-        case 'J':
-        case 'j':
+        case 'J': case 'j':
             enlargeList(morseBuffer, listSize, ".--- ", 5);
             break;
-        case 'K':
-        case 'k':
+        case 'K': case 'k':
             enlargeList(morseBuffer, listSize, "-.- ", 4);
             break;
-        case 'L':
-        case 'l':
+        case 'L': case 'l':
             enlargeList(morseBuffer, listSize, ".-.. ", 5);
             break;
-        case 'M':
-        case 'm':
+        case 'M': case 'm':
             enlargeList(morseBuffer, listSize, "-- ", 3);
             break;
-        case 'N':
-        case 'n':
+        case 'N': case 'n':
             enlargeList(morseBuffer, listSize, "-. ", 3);
             break;
-        case 'O':
-        case 'o':
+        case 'O': case 'o':
             enlargeList(morseBuffer, listSize, "--- ", 4);
             break;
-        case 'P':
-        case 'p':
+        case 'P': case 'p':
             enlargeList(morseBuffer, listSize, ".--. ", 5);
             break;
-        case 'Q':
-        case 'q':
+        case 'Q': case 'q':
             enlargeList(morseBuffer, listSize, "--.- ", 5);
             break;
-        case 'R':
-        case 'r':
+        case 'R': case 'r':
             enlargeList(morseBuffer, listSize, ".-. ", 4);
             break;
-        case 'S':
-        case 's':
+        case 'S': case 's':
             enlargeList(morseBuffer, listSize, "... ", 4);
             break;
-        case 'T':
-        case 't':
+        case 'T': case 't':
             enlargeList(morseBuffer, listSize, "- ", 2);
             break;
-        case 'U':
-        case 'u':
+        case 'U': case 'u':
             enlargeList(morseBuffer, listSize, "..- ", 4);
             break;
-        case 'V':
-        case 'v':
+        case 'V': case 'v':
             enlargeList(morseBuffer, listSize, "...- ", 5);
             break;
-        case 'W':
-        case 'w':
+        case 'W': case 'w':
             enlargeList(morseBuffer, listSize, ".-- ", 4);
             break;
-        case 'X':
-        case 'x':
+        case 'X': case 'x':
             enlargeList(morseBuffer, listSize, "-..- ", 5);
             break;
-        case 'Y':
-        case 'y':
+        case 'Y': case 'y':
             enlargeList(morseBuffer, listSize, "-.-- ", 5);
             break;
-        case 'Z':
-        case 'z':
+        case 'Z': case 'z':
             enlargeList(morseBuffer, listSize, "--.. ", 5);
             break;
         default:
@@ -328,44 +146,199 @@ char* alphabetToMorse(char*& toConvert)
     enlargeList(morseBuffer, listSize, "\0", 1);
 
     return morseBuffer;
+}
 
-};
-
-
-void playMorseSound(const char* morseCode)
-{
-
-    while (*morseCode != '\0')
-    {
-        switch (*morseCode)
-        {
-            case '.':
-                Beep(1000, dotWait);  // Dot: 1000 Hz for Single Unit Of Time
-                break;
-            case '-':
-                Beep(998, dashWait);  // Dash: 998 Hz For Three Units Of Time
-                break;
-            case ' ':
-                Sleep(spaceWait);  // Space: Pause For Three Units Of Time (Double Space Will Give Space 6 Units Of Time)
-                break;
+void playMorseSound(const char* morseCode) {
+    while (*morseCode != '\0' && !stopThreads) {
+        switch (*morseCode) {
+        case '.':
+            Beep(1000, dotWait);
+            break;
+        case '-':
+            Beep(998, dashWait);
+            break;
+        case ' ':
+            Sleep(spaceWait);
+            break;
         }
         morseCode++;
     }
+}
 
-};
+// Morse code detection function
+void processAudioData(const float* data, size_t length, std::vector<std::string>& morseCode) {
+    auto start = std::chrono::high_resolution_clock::now();
+    bool signalDetected = false;
+    auto signalStart = start;
 
+    for (size_t i = 0; i < length; ++i) {
+        if (abs(data[i]) > THRESHOLD) {
+            if (!signalDetected) {
+                signalDetected = true;
+                signalStart = std::chrono::high_resolution_clock::now();
+            }
+        }
+        else {
+            if (signalDetected) {
+                auto now = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
 
-int main()
-{
+                if (duration < dotWait) {
+                    morseCode.push_back(".");
+                }
+                else if (duration < dashWait) {
+                    morseCode.push_back("-");
+                }
+                else {
+                    morseCode.push_back(" ");
+                }
 
+                signalDetected = false;
+            }
+        }
+    }
+}
+// Reference times in 100-nanosecond units
+#define REFTIMES_PER_SEC  10000000
+#define REFTIMES_PER_MILLISEC  10000
+
+// WASAPI audio capture callback function
+HRESULT CaptureAudio() {
+    HRESULT hr;
+    REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
+    IMMDeviceEnumerator* pEnumerator = NULL;
+    IMMDevice* pDevice = NULL;
+    IAudioClient* pAudioClient = NULL;
+    IAudioCaptureClient* pCaptureClient = NULL;
+    WAVEFORMATEX* pwfx = NULL;
+    UINT32 packetLength = 0;
+    UINT32 numFramesAvailable;
+    BYTE* pData;
+    DWORD flags;
+
+    // Initialize COM library
+    hr = CoInitialize(NULL);
+    if (FAILED(hr)) {
+        printf("Unable to initialize COM library: %x\n", hr);
+        return hr;
+    }
+
+    // Get the default audio device
+    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
+    if (FAILED(hr)) {
+        printf("Unable to get default audio device: %x\n", hr);
+        return hr;
+    }
+
+    hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &pDevice);
+    if (FAILED(hr)) {
+        printf("Unable to get default audio endpoint: %x\n", hr);
+        return hr;
+    }
+
+    hr = pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&pAudioClient);
+    if (FAILED(hr)) {
+        printf("Unable to activate audio client: %x\n", hr);
+        return hr;
+    }
+
+    hr = pAudioClient->GetMixFormat(&pwfx);
+    if (FAILED(hr)) {
+        printf("Unable to get mix format: %x\n", hr);
+        return hr;
+    }
+
+    hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, hnsRequestedDuration, 0, pwfx, NULL);
+    if (FAILED(hr)) {
+        printf("Unable to initialize audio client: %x\n", hr);
+        return hr;
+    }
+
+    hr = pAudioClient->GetService(__uuidof(IAudioCaptureClient), (void**)&pCaptureClient);
+    if (FAILED(hr)) {
+        printf("Unable to get capture client: %x\n", hr);
+        return hr;
+    }
+
+    hr = pAudioClient->Start();
+    if (FAILED(hr)) {
+        printf("Unable to start audio client: %x\n", hr);
+        return hr;
+    }
+
+    while (!stopThreads) {
+        hr = pCaptureClient->GetNextPacketSize(&packetLength);
+        if (FAILED(hr)) {
+            printf("Unable to get next packet size: %x\n", hr);
+            break;
+        }
+
+        if (packetLength > 0) {
+            hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
+            if (FAILED(hr)) {
+                printf("Unable to get buffer: %x\n", hr);
+                break;
+            }
+
+            // Process the audio data
+            std::vector<std::string> morseCode;
+            processAudioData((const float*)pData, numFramesAvailable, morseCode);
+
+            // Output detected Morse code
+            for (const auto& code : morseCode) {
+                std::cout << code << " ";
+            }
+            std::cout << std::endl;
+
+            hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
+            if (FAILED(hr)) {
+                printf("Unable to release buffer: %x\n", hr);
+                break;
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    hr = pAudioClient->Stop();
+    if (FAILED(hr)) {
+        printf("Unable to stop audio client: %x\n", hr);
+        return hr;
+    }
+
+    CoTaskMemFree(pwfx);
+    pCaptureClient->Release();
+    pAudioClient->Release();
+    pDevice->Release();
+    pEnumerator->Release();
+    CoUninitialize();
+
+    return hr;
+}
+
+int main() {
     char* userInput = new char[100];
-    
+
     std::cout << "Enter Message In English To Convert Into Morse: \n";
-	std::cin.getline(userInput, 100);
+    std::cin.getline(userInput, 100);
 
     char* morseUserInput = alphabetToMorse(userInput);
+    if (!morseUserInput) {
+        std::cerr << "Error converting input to Morse code." << std::endl;
+        delete[] userInput;
+        return 1;
+    }
+
     std::cout << morseUserInput << std::endl;
 
+    std::thread captureThread(CaptureAudio);
+    std::this_thread::sleep_for(std::chrono::seconds(1));  // Ensure the capture thread starts first
     playMorseSound(morseUserInput);
 
+    captureThread.join();
+
+    delete[] userInput;
+    delete[] morseUserInput;
+
+    return 0;
 }

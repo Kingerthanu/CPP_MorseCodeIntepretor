@@ -14,7 +14,7 @@
 using namespace std;
 
 const double PI = 3.141592653589793238460;
-const float THRESHOLD = 0.01f; // Amplitude threshold for Morse code detection
+const float THRESHOLD = 0.00001f; // Amplitude threshold for Morse code detection
 
 // Morse timing constants
 static const float dotWait = 100.0f;
@@ -167,33 +167,17 @@ void playMorseSound(const char* morseCode) {
 }
 
 // Morse code detection function
-void processAudioData(const float* data, size_t length, std::vector<std::string>& morseCode) {
-    auto start = std::chrono::high_resolution_clock::now();
-    bool signalDetected = false;
-    auto signalStart = start;
-
+void processAudioData(const float* data, size_t length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration) {
     for (size_t i = 0; i < length; ++i) {
-        if (abs(data[i]) > THRESHOLD) {
+        if (fabs(data[i]) > THRESHOLD) {
             if (!signalDetected) {
                 signalDetected = true;
-                signalStart = std::chrono::high_resolution_clock::now();
             }
         }
         else {
             if (signalDetected) {
                 auto now = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
-
-                if (duration < dotWait) {
-                    morseCode.push_back(".");
-                }
-                else if (duration < dashWait) {
-                    morseCode.push_back("-");
-                }
-                else {
-                    morseCode.push_back(" ");
-                }
-
+                duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
                 signalDetected = false;
             }
         }
@@ -204,7 +188,6 @@ void processAudioData(const float* data, size_t length, std::vector<std::string>
 #define REFTIMES_PER_SEC  10000000
 #define REFTIMES_PER_MILLISEC  10000
 
-// WASAPI audio capture callback function
 HRESULT CaptureAudio() {
     HRESULT hr;
     REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
@@ -268,6 +251,11 @@ HRESULT CaptureAudio() {
         return hr;
     }
 
+    bool signalDetected = false;
+    auto signalStart = std::chrono::high_resolution_clock::now();
+    long long duration = 0;
+    
+
     while (!stopThreads) {
         hr = pCaptureClient->GetNextPacketSize(&packetLength);
         if (FAILED(hr)) {
@@ -275,7 +263,8 @@ HRESULT CaptureAudio() {
             break;
         }
 
-        if (packetLength > 0) {
+        if (packetLength > 0) 
+        {
             hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
             if (FAILED(hr)) {
                 printf("Unable to get buffer: %x\n", hr);
@@ -283,23 +272,39 @@ HRESULT CaptureAudio() {
             }
 
             // Process the audio data
-            std::vector<std::string> morseCode;
-            processAudioData((const float*)pData, numFramesAvailable, morseCode);
+            processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration);
 
-            // Output detected Morse code
-            for (const auto& code : morseCode) {
-                std::cout << code << " ";
+            if (!signalDetected && duration > 0) 
+            {
+                // Output detected Morse code duration
+                if (duration <= dotWait)
+                {
+                    std::cout << '.';
+                }
+                else if (duration > dotWait)
+                {
+                    std::cout << '-';
+                }
+                //std::cout << "Duration: " << duration << " ms" << std::endl;
+                duration = 0; // Reset duration after printing
+                signalStart = std::chrono::high_resolution_clock::now();
+             
             }
-            std::cout << std::endl;
+            else if (duration <= 0)
+            {   
+                signalStart = std::chrono::high_resolution_clock::now();
+            }
 
             hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
             if (FAILED(hr)) {
                 printf("Unable to release buffer: %x\n", hr);
                 break;
             }
+            
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        
+
     }
 
     hr = pAudioClient->Stop();

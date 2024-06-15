@@ -13,10 +13,13 @@ This Program Works With The Terminal And Users Input To Convert A Message Into M
 
 The Program Deepdown Is Working On 3 Stages:
 
-  - 1.) Translation To Morse<br>
-  - 2.) Emittion Of Morse On PC<br>
-  - 3.) Catching Of Morse On PC<br>
+  - 1.) Translation To Of User Input Into Morse<br>
+  - 2.) Emittion Of User Morse On PC<br>
+  - 3.) Catching Of User Morse On PC<br>
 
+The Program Starts By Asking The User For Their Given String Input In Which They Want To Convert To Morse Code. After Hitting Enter, This Input Will Be Converted Into Morse Code Using **-** For A Long Beep & **.** For A Short Beep. The Program Works Off The International Standards For Morse Code With Spaces Between Words Being 6 Instead Of 7 Units. After The Input Is Converted, The Program Will Create A Detached Thread In Which Will Use A Audio Output Listening Algorithm In Order To Listen To The Computer For Incoming Morse Code Inputs. It Will Detect This Morse, And Using Lengths Of The Given Sounds To Interpolate What Type Of Character Is Being Communicated, Like A **' '**, **'-'**, or **'.'**. After Receiving A Given Character--Denoted By A Single 3-Unit Wait--It Will Interpret The Given Morse Letter Back Into English.
+
+Currently It Works Reliably With The Morse Being The Only Sound Picked Up By The System And Has Difficulties With Inconsistent Samples But Will Swap Out Buffer Sampling Algorithm To Something More Reliable.
 
 <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49">
 

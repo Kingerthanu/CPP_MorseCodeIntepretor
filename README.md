@@ -19,7 +19,10 @@ The Program Deepdown Is Working On 3 Stages:
 
 The Program Starts By Asking The User For Their Given Strictly-Alphabetic String Input In Which They Want To Convert To Morse Code. After Hitting Enter, This Input Will Be Converted Into Morse Code Using **-** For A Long Beep & **.** For A Short Beep. The Program Works Off The International Standards For Morse Code With Spaces Between Words Being 6 Instead Of 7 Units. After The Input Is Converted, The Program Will Create A Detached Thread In Which Will Use A Audio Output Listening Algorithm In Order To Listen To The Computer For Incoming Morse Code Inputs. It Will Detect This Morse, And Using Lengths Of The Given Sounds To Interpolate What Type Of Character Is Being Communicated, Like A **' '**, **'-'**, or **'.'**. After Receiving A Given Character--Denoted By A Single 3-Unit Wait--It Will Interpret The Given Morse Letter Back Into English. The Listening Thread Will Keep Listening For Morse Even After The Sounding Thread Has Concluded And Can Be Terminated With CTRL + C.
 
-If You Know The Tempo Of A Current Morse Code Transaction You Can Run The Listening Thread Alone By Itself And Will Still Listen For The Passed Morse Asynchronously.
+If You Know The Tempo Of A Current Morse Code Transaction You Can Run The Listening Thread Alone By Itself And Will Still Listen For The Passed Morse Asynchronously. The Listening Thread Also Works On 2 Stages Instead Of The Three Of Our Main Sounding Thread As We Only Have The 2 Stages Of:
+
+  - 1.) Catching Of User Morse On PC<br>
+  - 2.) Translation To Of User's Morse Input Into English<br>
 
 Currently It Works Reliably With The Morse Being The Only Sound Picked Up By The System And Has Difficulties With Inconsistent Samples But Will Swap Out Buffer Sampling Algorithm To Something More Reliable.
 

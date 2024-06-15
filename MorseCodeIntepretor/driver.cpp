@@ -5,23 +5,18 @@
 #include <audiopolicy.h>
 #include <chrono>
 #include <thread>
-#include <vector>
 #include <atomic>
-#include <conio.h>
-#include <comdef.h>
-#include <functional>
 
-using namespace std;
 
 const double PI = 3.141592653589793238460;
-const float THRESHOLD = 0.0001f; // Amplitude Threshold For Morse Code Detection
+const float THRESHOLD = 0.01f; // Amplitude Threshold For Morse Code Detection
 
 // Morse timing constants
-static const unsigned int dotWait = 200;
+static const unsigned int dotWait = 70;
 static const unsigned int dashWait = dotWait * 3;
 static const unsigned int spaceWait = dashWait;
-
 std::atomic<bool> stopThreads(false);
+
 
 void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize) {
     unsigned int newSize = oldSize + chunkSize;
@@ -149,6 +144,51 @@ char* alphabetToMorse(char*& toConvert) {
     return morseBuffer;
 }
 
+
+char morseToAlphabet(const std::string& morse) {
+    switch (morse.length()) {
+    case 1:
+        if (morse == ".") return 'E';
+        if (morse == "-") return 'T';
+        break;
+    case 2:
+        if (morse == "..") return 'I';
+        if (morse == ".-") return 'A';
+        if (morse == "-.") return 'N';
+        if (morse == "--") return 'M';
+        break;
+    case 3:
+        if (morse == "...") return 'S';
+        if (morse == "..-") return 'U';
+        if (morse == ".-.") return 'R';
+        if (morse == ".--") return 'W';
+        if (morse == "-..") return 'D';
+        if (morse == "-.-") return 'K';
+        if (morse == "--.") return 'G';
+        if (morse == "---") return 'O';
+        break;
+    case 4:
+        if (morse == "....") return 'H';
+        if (morse == "...-") return 'V';
+        if (morse == "..-.") return 'F';
+        if (morse == ".-..") return 'L';
+        if (morse == ".--.") return 'P';
+        if (morse == ".---") return 'J';
+        if (morse == "-...") return 'B';
+        if (morse == "-..-") return 'X';
+        if (morse == "-.-.") return 'C';
+        if (morse == "-.--") return 'Y';
+        if (morse == "--..") return 'Z';
+        if (morse == "--.-") return 'Q';
+        break;
+    default:
+        return ' ';
+    }
+    return ' ';
+}
+
+
+
 void playMorseSound(const char* morseCode) {
     while (*morseCode != '\0' && !stopThreads) {
         switch (*morseCode) {
@@ -158,20 +198,23 @@ void playMorseSound(const char* morseCode) {
             break;
         case '-':
             //std::cout << "Playing '-' \n";
-            Beep(998, dashWait);
+            Beep(950, dashWait);
             break;
         case ' ':
             //std::cout << "Playing ' ' \n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(spaceWait));
+            Beep(0, spaceWait);
             break;
         }
         morseCode++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(dotWait / 4));  // Only Execute Every 1/4th Of Lowest Beep Time (Under Communication For Either Type But Doesn't Allow Compound Beeps)
+
     }
 }
 
 // Morse code detection function
 void processAudioData(const float* data, size_t length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration) {
-    for (size_t i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) 
+    {
         if (fabs(data[i]) > THRESHOLD) {
             if (!signalDetected) {
                 signalDetected = true;
@@ -248,6 +291,21 @@ HRESULT CaptureAudio() {
         return hr;
     }
 
+    // Clear the audio buffer
+    while (pCaptureClient->GetNextPacketSize(&packetLength) == S_OK && packetLength > 0) 
+    {
+        hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
+        if (FAILED(hr)) {
+            printf("Unable to get buffer: %x\n", hr);
+            return hr;
+        }
+        hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
+        if (FAILED(hr)) {
+            printf("Unable to release buffer: %x\n", hr);
+            return hr;
+        }
+    }
+
     hr = pAudioClient->Start();
     if (FAILED(hr)) {
         printf("Unable to start audio client: %x\n", hr);
@@ -258,7 +316,7 @@ HRESULT CaptureAudio() {
     auto signalStart = std::chrono::high_resolution_clock::now();
     auto lastLetter = std::chrono::high_resolution_clock::now();
     long long duration = 0;
-    
+    std::string currentWord;
 
     while (!stopThreads) {
         hr = pCaptureClient->GetNextPacketSize(&packetLength);
@@ -267,7 +325,7 @@ HRESULT CaptureAudio() {
             break;
         }
 
-        if (packetLength > 0) 
+        if (packetLength > 0)
         {
             hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
             if (FAILED(hr)) {
@@ -278,27 +336,36 @@ HRESULT CaptureAudio() {
             // Process the audio data
             processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration);
 
-            if (!signalDetected && duration > 0) 
+            if (!signalDetected && duration > 0)
             {
                 // Output detected Morse code duration
                 if (duration <= dotWait)
                 {
-                    std::cout << '.';
+                    //std::cout << '.';
+                    currentWord += '.';
                 }
                 else if (duration > dotWait)
                 {
-                    std::cout << '-';
+                    //std::cout << '-';
+                    currentWord += '-';
                 }
-                //std::cout << "Duration: " << duration << " ms" << std::endl;
                 duration = 0; // Reset duration after printing
                 signalStart = std::chrono::high_resolution_clock::now();
                 lastLetter = std::chrono::high_resolution_clock::now();
-             
+
             }
             else if (duration <= 0)
-            {   
-                if (std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::high_resolution_clock::now()) - lastLetter).count() >= (spaceWait - (dotWait / 2)))
+            {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::high_resolution_clock::now()) - lastLetter).count() >= (spaceWait))
                 {
+            
+                    if(!currentWord.empty()) 
+                    {
+                        char letter = morseToAlphabet(currentWord);
+                        std::cout << letter;
+                        currentWord.clear();
+                    }
+
                     std::cout << ' ';
                     lastLetter = std::chrono::high_resolution_clock::now();
                 }
@@ -312,8 +379,6 @@ HRESULT CaptureAudio() {
             }
 
         }
-
-        
 
     }
 
@@ -333,7 +398,8 @@ HRESULT CaptureAudio() {
     return hr;
 }
 
-int main() {
+int main() 
+{
     char* userInput = new char[100];
 
     std::cout << "Enter Message In English To Convert Into Morse: \n";
@@ -349,7 +415,7 @@ int main() {
     std::cout << morseUserInput << std::endl;
 
     std::thread captureThread(CaptureAudio);
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));  // Ensure the capture thread starts first
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));  // Ensure the capture thread starts first
     playMorseSound(morseUserInput);
 
     captureThread.join();

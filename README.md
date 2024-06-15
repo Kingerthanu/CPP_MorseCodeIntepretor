@@ -9,7 +9,14 @@
 
 **The Breakdown:**
 
-  Lorm
+This Program Works With The Terminal And Users Input To Convert A Message Into Morse Code, Emit The Sound Of Their String And With Windows Audio Output Detect The Morse And Reconvert It Into A Message.
+
+The Program Deepdown Is Working On 3 Stages:
+
+  - 1.) Translation To Morse<br>
+  - 2.) Emittion Of Morse On PC<br>
+  - 3.) Catching Of Morse On PC<br>
+
 
 <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49">
 

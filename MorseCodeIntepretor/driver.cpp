@@ -6,7 +6,7 @@
 #include <thread>
 
 // How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-const float THRESHOLD = 0.01f;
+const float THRESHOLD = 0.001f;
 
 // Morse Timing Constants
 static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time

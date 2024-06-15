@@ -17,3 +17,4 @@
 
 <img src="https://github.com/Kingerthanu/Java_Astar_PathfindingFreeDraw/assets/76754592/98a9e049-55fe-4cf6-9171-971da1d1b014" alt="Cornstarch <3" width="65" height="49"><img src="https://github.com/Kingerthanu/Java_Astar_PathfindingFreeDraw/assets/76754592/98a9e049-55fe-4cf6-9171-971da1d1b014" alt="Cornstarch <3" width="65" height="49"><img src="https://github.com/Kingerthanu/Java_Astar_PathfindingFreeDraw/assets/76754592/98a9e049-55fe-4cf6-9171-971da1d1b014" alt="Cornstarch <3" width="65" height="49"><img src="https://github.com/Kingerthanu/Java_Astar_PathfindingFreeDraw/assets/76754592/98a9e049-55fe-4cf6-9171-971da1d1b014" alt="Cornstarch <3" width="65" height="49">
 
+**Features:**

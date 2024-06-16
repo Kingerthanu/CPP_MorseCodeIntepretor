@@ -6,7 +6,7 @@
 #include <thread>
 
 // How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-const float THRESHOLD = 0.001f;
+const float THRESHOLD = 0.0005f;
 
 // Morse Timing Constants
 static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time
@@ -153,6 +153,36 @@ char* alphabetToMorse(char*& toConvert)
             case 'Z': case 'z':
                 enlargeList(morseBuffer, listSize, "--.. ", 5);
                 break;
+            case '1':
+                enlargeList(morseBuffer, listSize, ".---- ", 6);
+                break; 
+            case '2':
+                enlargeList(morseBuffer, listSize, "..--- ", 6);
+                break;
+            case '3':
+                enlargeList(morseBuffer, listSize, "...-- ", 6);
+                break;
+            case '4':
+                enlargeList(morseBuffer, listSize, "....- ", 6);
+                break;
+            case '5':
+                enlargeList(morseBuffer, listSize, "..... ", 6);
+                break;
+            case '6':
+                enlargeList(morseBuffer, listSize, "-.... ", 6);
+                break;
+            case '7':
+                enlargeList(morseBuffer, listSize, "--... ", 6);
+                break;
+            case '8':
+                enlargeList(morseBuffer, listSize, "---.. ", 6);
+                break;
+            case '9':
+                enlargeList(morseBuffer, listSize, "----. ", 6);
+                break;
+            case '0':
+                enlargeList(morseBuffer, listSize, "----- ", 6);
+                break;
             default:
                 enlargeList(morseBuffer, listSize, " ", 1);
                 break;
@@ -212,6 +242,18 @@ char morseToAlphabet(const std::string& morse)
             if (morse == "-.--") return 'Y';
             if (morse == "--..") return 'Z';
             if (morse == "--.-") return 'Q';
+            break;
+        case 5: // Handling Numbers
+            if (morse == "-----") return '0';
+            if (morse == ".----") return '1';
+            if (morse == "..---") return '2';
+            if (morse == "...--") return '3';
+            if (morse == "....-") return '4';
+            if (morse == ".....") return '5';
+            if (morse == "-....") return '6';
+            if (morse == "--...") return '7';
+            if (morse == "---..") return '8';
+            if (morse == "----.") return '9';
             break;
         default:
             return ' ';
@@ -482,9 +524,9 @@ HRESULT CaptureAudio()
 int main() 
 {
     // Grab User-Message
-    char* userInput = new char[100];
+    char* userInput = new char[400];
     std::cout << "Enter Message In English To Convert Into Morse: \n";
-    std::cin.getline(userInput, 100);
+    std::cin.getline(userInput, 400);
 
     // Convert User-Message -> User-Morse
     char* morseUserInput = alphabetToMorse(userInput);

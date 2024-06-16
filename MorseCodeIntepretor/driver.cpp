@@ -6,10 +6,10 @@
 #include <thread>
 
 // How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-const float THRESHOLD = 0.0005f;
+const float THRESHOLD = 0.001f;
 
 // Morse Timing Constants
-static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time
+static const unsigned int dotWait = 60;                 // 70ms Wait Dot Single Unit/Dot Wait Time
 static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait Time
 static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
 std::atomic<bool> stopThreads(false);
@@ -278,15 +278,12 @@ void playMorseSound(const char* morseCode)
         switch (*morseCode) 
         {
             case '.':
-                //std::cout << "Playing '.' \n";
                 Beep(1000, dotWait);
                 break;
             case '-':
-                //std::cout << "Playing '-' \n";
                 Beep(950, dashWait);
                 break;
             case ' ':
-                //std::cout << "Playing ' ' \n";
                 Beep(0, spaceWait);
                 break;
         }
@@ -309,7 +306,7 @@ void processAudioData(const float* data, size_t length, bool& signalDetected, st
 
     for (size_t i = 0; i < length; ++i) 
     {
-        if (fabs(data[i]) > THRESHOLD) 
+        if (fabs(data[i]) > THRESHOLD)
         {
             if (!signalDetected) {
                 signalDetected = true;
@@ -499,6 +496,8 @@ HRESULT CaptureAudio()
             }
 
         }
+
+        std::this_thread::sleep_for(std::chrono::nanoseconds(500));
 
     }
 

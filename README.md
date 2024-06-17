@@ -37,9 +37,7 @@ Currently Works With Light Background Noise Where The Morse Code Is One Of The P
 
 **Features:**
 
-![ohioClient-ezgif com-video-to-gif-converter](https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/a08fe215-d361-4a11-8b37-35290daaf6af)
-
-![2024-06-1518-06-19-ezgif com-video-to-gif-converter](https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/72d24711-eaa1-4c5d-9ecf-e7a49dc0d563)
+![2024-06-1715-12-09-ezgif com-cut](https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/84690f0a-a529-4eac-bf83-f84dd4ed3f1a)
 
 
 <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59">

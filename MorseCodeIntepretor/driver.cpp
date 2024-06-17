@@ -13,7 +13,7 @@
 
 
 // How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-const float THRESHOLD = 0.1f;
+const float THRESHOLD = 0.15f;
 
 // Morse Timing Constants
 static const unsigned int dotWait = 80;                 // 70ms Wait Dot Single Unit/Dot Wait Time
@@ -76,6 +76,8 @@ class WINDOW_AUDIOWAVES
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 2));
             glEnableVertexAttribArray(1);
     
+            // Poll Initial Events To Avoid Blue-Circle Hover
+            glfwPollEvents();
             glfwMakeContextCurrent(nullptr);
 
         }
@@ -582,7 +584,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
             if (!signalDetected && duration > 0)
             {
                 // Output detected Morse code duration
-                if (dotWait - 65  <= duration && duration <= dotWait)
+                if (5 <= duration && duration <= dotWait)
                 {
                     currentWord += '.';
                 }
@@ -666,12 +668,12 @@ int main()
     // Print The Morse Code Interpretation Of User's Message
     std::cout << morseUserInput << std::endl;
 
-    WINDOW_AUDIOWAVES audioWindow(200, 200);
+    WINDOW_AUDIOWAVES audioWindow(400, 400);
     
 
     // Launch Off A Thread To Listen To The Current Audio Output Of The System
     std::thread captureThread(CaptureAudio, &audioWindow);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // Ensure The Capture Thread Starts First
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));  // Ensure The Capture Thread Starts First
 
     // Now Play Our Noise After Listener Is Ready
     playMorseSound(morseUserInput);

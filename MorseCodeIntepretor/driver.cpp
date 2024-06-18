@@ -12,8 +12,14 @@
 #include "glm/glm.hpp"
 
 
-// How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-const float THRESHOLD = 0.15f;
+/*
+    How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
+    Lower Value -> Audio Of Lower Frequencies Considered  |  Higher Value -> Audio Of Higher Frequencies Considered
+*/
+const float THRESHOLD = 0.035f;
+
+
+
 
 // Morse Timing Constants
 static const unsigned int dotWait = 80;                 // 70ms Wait Dot Single Unit/Dot Wait Time
@@ -407,15 +413,13 @@ void playMorseSound(const char* morseCode)
             Beep(1000, dotWait);
             break;
         case '-':
-            Beep(950, dashWait);
+            Beep(980, dashWait);
             break;
         case ' ':
             Beep(0, spaceWait);
             break;
         }
         morseCode++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(dotWait / 4));  // Only Execute Every 1/4th Of Lowest Beep Time (Under Communication For Either Type But Doesn't Allow Compound Beeps)
-
     }
 
 }
@@ -478,6 +482,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
     UINT32 numFramesAvailable;
     BYTE* pData;
     DWORD flags;
+
 
     // Initialize COM library
     hr = CoInitialize(NULL);
@@ -584,7 +589,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
             if (!signalDetected && duration > 0)
             {
                 // Output detected Morse code duration
-                if (5 <= duration && duration <= dotWait)
+                if (10 <= duration && duration <= dotWait)
                 {
                     currentWord += '.';
                 }

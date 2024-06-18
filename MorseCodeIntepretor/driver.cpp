@@ -13,12 +13,10 @@
 
 
 /*
-    How Sensitive We Want Our Morse To Start To Be Detected At (Will Detect Any Sound Aswell Simply Above Threshold)
-    Lower Value -> Audio Of Lower Frequencies Considered  |  Higher Value -> Audio Of Higher Frequencies Considered
+    How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
+    Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
 */
-const float THRESHOLD = 0.035f;
-
-
+float THRESHOLD = 0.005f;
 
 
 // Morse Timing Constants
@@ -144,6 +142,63 @@ class WINDOW_AUDIOWAVES
 
 
 
+
+
+float calculateAverageNoiseLevel(IAudioCaptureClient* pCaptureClient)
+{
+    const int sampleDurationSeconds = 3; // Duration to sample background noise
+    const int sampleRate = 44100; // Sample rate in Hz
+    const int numSamples = sampleRate * sampleDurationSeconds;
+    std::vector<float> noiseSamples;
+    noiseSamples.reserve(numSamples);
+
+    UINT32 packetLength = 0;
+    BYTE* pData = nullptr;
+    DWORD flags = 0;
+    UINT32 numFramesAvailable = 0;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    while (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() < sampleDurationSeconds)
+    {
+        HRESULT hr = pCaptureClient->GetNextPacketSize(&packetLength);
+        if (FAILED(hr) || packetLength == 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
+        hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
+        if (FAILED(hr))
+        {
+            printf("Unable to get buffer: %x\n", hr);
+            break;
+        }
+
+        const float* data = reinterpret_cast<const float*>(pData);
+        noiseSamples.insert(noiseSamples.end(), data, data + numFramesAvailable);
+        
+        hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
+        if (FAILED(hr))
+        {
+            printf("Unable to release buffer: %x\n", hr);
+            break;
+        }
+    }
+
+    float sum = 0;
+    for (float sample : noiseSamples)
+    {
+        sum += std::abs(sample);
+    }
+
+    if (noiseSamples.empty() || !sum)
+    {
+        return THRESHOLD;
+    }
+    
+    return sum / noiseSamples.size();
+}
 
 
 // Preconditions:
@@ -413,7 +468,7 @@ void playMorseSound(const char* morseCode)
             Beep(1000, dotWait);
             break;
         case '-':
-            Beep(980, dashWait);
+            Beep(1000, dashWait);
             break;
         case ' ':
             Beep(0, spaceWait);
@@ -423,6 +478,7 @@ void playMorseSound(const char* morseCode)
     }
 
 }
+
 
 // Preconditions:
 //   1.) Will Grab Float-Sound Input In data With Amount Of Samples In length
@@ -458,10 +514,10 @@ void processAudioData(const float* data, size_t length, bool& signalDetected, st
 
 }
 
-// Reference Times In 100-Nanoseconds
+
+// Reference Times In 100-Nanoseconds For Sampling
 #define REFTIMES_PER_SEC  10000000
 #define REFTIMES_PER_MILLISEC  10000
-
 
 // Preconditions:
 //   1.) Listens To Audio Output For Sound Samples Above A Given Threshold, Interpolating Length Of Message For Morse Type
@@ -559,6 +615,13 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
         return hr;
     }
 
+
+    // Calculate the average noise level and set the threshold
+    THRESHOLD = calculateAverageNoiseLevel(pCaptureClient) * 7.73f; // Adjust the multiplier as needed
+
+    std::cout << "Calculated threshold: " << THRESHOLD << std::endl;
+
+
     bool signalDetected = false;
     auto signalStart = std::chrono::high_resolution_clock::now();
     auto lastLetter = std::chrono::high_resolution_clock::now();
@@ -631,7 +694,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 
         }
 
-        std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
     }
 
@@ -678,7 +741,7 @@ int main()
 
     // Launch Off A Thread To Listen To The Current Audio Output Of The System
     std::thread captureThread(CaptureAudio, &audioWindow);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2500));  // Ensure The Capture Thread Starts First
+    std::this_thread::sleep_for(std::chrono::milliseconds(3500));  // Ensure The Capture Thread Starts First
 
     // Now Play Our Noise After Listener Is Ready
     playMorseSound(morseUserInput);

@@ -147,15 +147,14 @@ class WINDOW_AUDIOWAVES
             glBindVertexArray(VAO);
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-            // Update buffer data using glBufferData with GL_DYNAMIC_DRAW
+            // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
             glBufferData(GL_ARRAY_BUFFER, (length+1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
 
-            // Draw all lines
+            // Draw All Lines
             glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
 
             // Swap the front and back buffers
             glfwSwapBuffers(this->_WINDOW);
-            //std::this_thread::sleep_for(std::chrono::milliseconds(3));
         
             glfwMakeContextCurrent(nullptr);
 
@@ -230,7 +229,7 @@ float calculateAverageNoiseLevel(IAudioCaptureClient* pCaptureClient)
     float sum = 0;
     for (float sample : noiseSamples)
     {
-        sum += std::abs(sample);
+        sum += std::fabs(sample);
     }
 
     if (noiseSamples.empty() || !sum)
@@ -532,30 +531,51 @@ void playMorseSound(const char* morseCode)
 //   2.) Sets signalDetected Showing If We Are Still In A Multi-Packet Signal
 void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow)
 {
-
     std::thread([&audioWindow, data, length]() {
         audioWindow.RenderDiscrete(data, length);
         }).detach();
 
-    for (UINT32 i = 0; i < length; ++i)
-    {
-        if (fabs(data[i]) > THRESHOLD)
+        // Determine the maximum magnitude in the audio buffer for normalization
+        float maxMagnitude = 0.0f;
+        for (UINT32 i = 0; i < length; ++i)
         {
-            if (!signalDetected) {
-                signalDetected = true;
-            }
-        }
-        else
-        {
-            if (signalDetected)
+            if (fabs(data[i]) > maxMagnitude)
             {
-                auto now = std::chrono::high_resolution_clock::now();
-                duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
-                signalDetected = false;
+                maxMagnitude = fabs(data[i]);
             }
         }
-    }
 
+        // Avoid division by zero
+        if (maxMagnitude == 0.0f)
+        {
+            maxMagnitude = 1.0f;
+        }
+
+        //std::cout << maxMagnitude << '\n';
+
+        // Normalize the audio data and process it
+        for (UINT32 i = 0; i < length; ++i)
+        {
+            float normalizedSample = data[i] / maxMagnitude;
+
+            if (fabs(normalizedSample) > THRESHOLD)
+            {
+                if (!signalDetected)
+                {
+                    signalDetected = true;
+                    signalStart = std::chrono::high_resolution_clock::now();
+                }
+            }
+            else
+            {
+                if (signalDetected)
+                {
+                    auto now = std::chrono::high_resolution_clock::now();
+                    duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
+                    signalDetected = false;
+                }
+            }
+        }
 }
 
 
@@ -700,7 +720,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
                 {
                     currentWord += '.';
                 }
-                else if (dotWait < duration && duration <= dashWait + 10)
+                else if (dotWait < duration && duration <= dashWait)
                 {
                     currentWord += '-';
                 }
@@ -738,7 +758,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 
         }
 
-        //std::this_thread::sleep_for(std::chrono::nanoseconds(250));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     }
 

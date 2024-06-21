@@ -21,7 +21,7 @@
    How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
    Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
 */
-float THRESHOLD = 0.2475f;
+float THRESHOLD = 0.23475f;
 
 
 // Morse Timing Constants

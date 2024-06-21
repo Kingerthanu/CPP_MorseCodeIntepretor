@@ -10,23 +10,25 @@
 #include "shader.h"
 #include <mutex>
 #include "glm/glm.hpp"
+#include <signal.h>
+
+
+// Tell During Compile-Time For Compiler To Swap Defs Out With Literal
+#define PI 3.141592653589793238
 
 
 /*
-    How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
-    Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
+   How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
+   Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
 */
-float THRESHOLD = 0.005f;
+float THRESHOLD = 0.2475f;
 
 
 // Morse Timing Constants
-static const unsigned int dotWait = 80;                 // 70ms Wait Dot Single Unit/Dot Wait Time
+static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time
 static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait Time
 static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
 std::atomic<bool> stopThreads(false);
-
-
-
 
 
 class WINDOW_AUDIOWAVES
@@ -37,6 +39,31 @@ class WINDOW_AUDIOWAVES
         GLFWwindow* _WINDOW;
         Shader contextShader;
         std::mutex contextWand;
+
+        // Base-Line Radius Of Audio-Wave Circle
+        const float _circleRadius = 0.65f;
+
+
+        // Function to generate vertices for a segmented circle
+        std::vector<Vertex> generateSegmentedCircle(const float& centerX, const float& centerY, const float* audioData, const UINT32& segmentCount) 
+        {
+            std::vector<Vertex> vertices;
+            float angleStep = 2.0f * PI / segmentCount;
+
+            for (UINT32 i = 0; i < segmentCount; ++i) 
+            {
+
+                float normalizedSample = fabs(audioData[i]) * 0.75f;
+
+                float angle = i * angleStep;
+                vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + normalizedSample) * cos(angle), centerY + (_circleRadius + normalizedSample) * sin(angle)), glm::vec3(0.93f, 0.15f, 0.45f) });
+            }
+
+            // Add First Position Again To Stitch Together Difference
+            vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + (fabs(audioData[0]) * 0.75f)), 0), glm::vec3(0.93f, 0.15f, 0.45f) });
+
+            return vertices;
+        }
 
     public:
         
@@ -58,13 +85,13 @@ class WINDOW_AUDIOWAVES
             glfwMakeContextCurrent(this->_WINDOW);
             gladLoadGL();
 
-            glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
             this->contextShader = Shader("default.vert", "default.frag");
             this->contextShader.Activate();
 
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             glfwSwapBuffers(this->_WINDOW);
+            glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
         
             // Generate and bind the VAO
             glGenVertexArrays(1, &VAO);
@@ -86,7 +113,7 @@ class WINDOW_AUDIOWAVES
 
         }
 
-        void RenderDiscrete(const float* audioData, const unsigned int& length)
+        void RenderDiscrete(const float* audioData, const UINT32 length)
         {
 
             // Lock the mutex to synchronize access to OpenGL context
@@ -98,32 +125,40 @@ class WINDOW_AUDIOWAVES
             // Clear the color buffer
             glClear(GL_COLOR_BUFFER_BIT);
 
-            // Normalize the data
-            std::vector<Vertex> normalizedBuffer;
-            normalizedBuffer.reserve(length);
+            /*
 
-            float stepIncrement = 2.0f / length;
-            float step = -1.0f;
+                // Normalize The Data
+                std::vector<Vertex> normalizedBuffer;
+                normalizedBuffer.reserve(length);
 
-            for (unsigned int i = 0; i < length; ++i, step += stepIncrement) 
-            {
-                normalizedBuffer.push_back(Vertex{ glm::vec2(step, audioData[i] * 0.75f), glm::vec3(0.76f, 0.2f, 0.0f) });
-            }
+                float stepIncrement = 2.0f / length;
+                float step = -1.0f;
 
-            // Bind VAO and VBO
+                //std::cout << *audioData << ' ' << length << '\n';
+
+                for (UINT32 i = 0; i < length; ++i, step += stepIncrement) 
+                {
+                    normalizedBuffer.push_back(Vertex{ glm::vec2(step, audioData[i] * 0.65f), glm::vec3(0.76f, 0.2f, 0.35f) });
+                }
+
+            */
+
+            // Bind VAO And VBO
             glBindVertexArray(VAO);
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
             // Update buffer data using glBufferData with GL_DYNAMIC_DRAW
-            glBufferData(GL_ARRAY_BUFFER, normalizedBuffer.size() * sizeof(Vertex), normalizedBuffer.data(), GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, (length+1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
 
             // Draw all lines
-            glDrawArrays(GL_LINE_STRIP, 0, normalizedBuffer.size());
+            glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
 
             // Swap the front and back buffers
             glfwSwapBuffers(this->_WINDOW);
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        
             glfwMakeContextCurrent(nullptr);
+
         }
 
         static void resize_callback(GLFWwindow* window, int width, int height)
@@ -143,10 +178,16 @@ class WINDOW_AUDIOWAVES
 
 
 
+void signalShutdown(int) 
+{
+    // Shutdown By Telling All Their Mainloops To Stop
+    std::cout << "Shutting Down...\n";
+    stopThreads = true;
+}
 
 float calculateAverageNoiseLevel(IAudioCaptureClient* pCaptureClient)
 {
-    const int sampleDurationSeconds = 3; // Duration to sample background noise
+    const int sampleDurationSeconds = 5; // Duration to sample background noise
     const int sampleRate = 44100; // Sample rate in Hz
     const int numSamples = sampleRate * sampleDurationSeconds;
     std::vector<float> noiseSamples;
@@ -237,7 +278,7 @@ void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert,
 //   2.) Expects Input To Be Purely Alphabetic
 //   3.) Spaces And Other Non-Alphabetic Chars Will Be Set To ' '
 //   4.) Each Letter Appends ' ' At End For End-Of-Char In Morse
-//  Postconditions:
+// Postconditions:
 //   1.) Returns New Char Buffer Holding Morse Code Conversion Of toConvert
 //   2.) '\0' Is Added At End Of Char Buffer (C-Style String)
 char* alphabetToMorse(char*& toConvert)
@@ -253,8 +294,7 @@ char* alphabetToMorse(char*& toConvert)
         return nullptr;
     }
 
-    char* morseBuffer = new char[1];
-    morseBuffer[0] = '\0';
+    char* morseBuffer = new char[0];
     unsigned int listSize = 0;
 
     for (unsigned int cIndex = 0; cIndex < messageLength; cIndex++)
@@ -388,7 +428,7 @@ char* alphabetToMorse(char*& toConvert)
 //   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep
 //   2.) Expects Input To Be Purely Morse Code
 //   3.) Spaces And Other Non-Morse Chars Will Be Set To ' '
-//  Postconditions:
+// Postconditions:
 //   1.) Returns New Char Buffer Holding Morse Conversion Of morse
 //   2.) '\0' Is Added At End Of Char Buffer (C-Style String)
 char morseToAlphabet(const std::string& morse)
@@ -462,19 +502,22 @@ void playMorseSound(const char* morseCode)
 
     while (*morseCode != '\0' && !stopThreads)
     {
-        switch (*morseCode)
+
+        switch (*morseCode++)
         {
-        case '.':
-            Beep(1000, dotWait);
-            break;
-        case '-':
-            Beep(1000, dashWait);
-            break;
-        case ' ':
-            Beep(0, spaceWait);
-            break;
+            case '.':
+                Beep(1000, dotWait);
+                std::this_thread::sleep_for(std::chrono::milliseconds(dotWait));
+                break;
+            case '-':
+                Beep(1000, dashWait);
+                std::this_thread::sleep_for(std::chrono::milliseconds(dotWait));
+                break;
+            case ' ':
+                std::this_thread::sleep_for(std::chrono::milliseconds(spaceWait));
+                break;
         }
-        morseCode++;
+
     }
 
 }
@@ -487,13 +530,14 @@ void playMorseSound(const char* morseCode)
 // Postconditions:
 //   1.) Sets duration Of Continuous Audio Output
 //   2.) Sets signalDetected Showing If We Are Still In A Multi-Packet Signal
-void processAudioData(const float* data, size_t length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow)
+void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow)
 {
 
     std::thread([&audioWindow, data, length]() {
         audioWindow.RenderDiscrete(data, length);
         }).detach();
-    for (size_t i = 0; i < length; ++i)
+
+    for (UINT32 i = 0; i < length; ++i)
     {
         if (fabs(data[i]) > THRESHOLD)
         {
@@ -617,7 +661,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 
 
     // Calculate the average noise level and set the threshold
-    THRESHOLD = calculateAverageNoiseLevel(pCaptureClient) * 7.73f; // Adjust the multiplier as needed
+    //THRESHOLD = calculateAverageNoiseLevel(pCaptureClient) * 8.035f; // Adjust the multiplier as needed
 
     std::cout << "Calculated threshold: " << THRESHOLD << std::endl;
 
@@ -652,11 +696,11 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
             if (!signalDetected && duration > 0)
             {
                 // Output detected Morse code duration
-                if (10 <= duration && duration <= dotWait)
+                if (15 <= duration && duration <= dotWait)
                 {
                     currentWord += '.';
                 }
-                else if (duration > dotWait)
+                else if (dotWait < duration && duration <= dashWait + 10)
                 {
                     currentWord += '-';
                 }
@@ -694,7 +738,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //std::this_thread::sleep_for(std::chrono::nanoseconds(250));
 
     }
 
@@ -720,10 +764,14 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 int main()
 {
 
+    // Register signal handler
+    signal(SIGINT, signalShutdown);
+
+
     // Grab User-Message
-    char* userInput = new char[400];
+    char* userInput = new char[200];
     std::cout << "Enter Message In English To Convert Into Morse: \n";
-    std::cin.getline(userInput, 400);
+    std::cin.getline(userInput, 200);
 
     // Convert User-Message -> User-Morse
     char* morseUserInput = alphabetToMorse(userInput);
@@ -736,12 +784,14 @@ int main()
     // Print The Morse Code Interpretation Of User's Message
     std::cout << morseUserInput << std::endl;
 
-    WINDOW_AUDIOWAVES audioWindow(400, 400);
-    
+
+    WINDOW_AUDIOWAVES audioWindow(800, 800);
 
     // Launch Off A Thread To Listen To The Current Audio Output Of The System
     std::thread captureThread(CaptureAudio, &audioWindow);
-    std::this_thread::sleep_for(std::chrono::milliseconds(3500));  // Ensure The Capture Thread Starts First
+
+    // Ensure The Capture Thread Starts First
+    std::this_thread::sleep_for(std::chrono::milliseconds(6500));  
 
     // Now Play Our Noise After Listener Is Ready
     playMorseSound(morseUserInput);
@@ -749,8 +799,13 @@ int main()
     // After Noise, Wait To Join Our Listening Thread Before Closing
     captureThread.join();
     
+
     delete[] userInput;
     delete[] morseUserInput;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));  // Ensure The Capture Thread Starts First
+
+    
 
     return 0;
 }

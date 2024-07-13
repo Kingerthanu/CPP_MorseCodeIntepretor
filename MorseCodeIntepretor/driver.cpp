@@ -21,7 +21,7 @@
    How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
    Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
 */
-float THRESHOLD = 0.425f;
+float THRESHOLD = 0.000000000425f;
 
 
 // Morse Timing Constants
@@ -30,6 +30,13 @@ static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait 
 static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
 std::atomic<bool> stopThreads(false);
 
+
+void signalShutdown(int)
+{
+    // Shutdown By Telling All Their Mainloops To Stop
+    std::cout << "Shutting Down...\n";
+    stopThreads = true;
+}
 
 class WINDOW_AUDIOWAVES
 {
@@ -147,16 +154,16 @@ public:
         glBindVertexArray(VAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-            // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
-            glBufferData(GL_ARRAY_BUFFER, (length+1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
+        // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
+        glBufferData(GL_ARRAY_BUFFER, (length + 1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
 
-            // Draw All Lines
-            glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
+        // Draw All Lines
+        glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
 
-            // Swap the front and back buffers
-            glfwSwapBuffers(this->_WINDOW);
-        
-            glfwMakeContextCurrent(nullptr);
+        // Swap the front and back buffers
+        glfwSwapBuffers(this->_WINDOW);
+
+        glfwMakeContextCurrent(nullptr);
 
     }
 
@@ -173,16 +180,6 @@ public:
         glfwDestroyWindow(this->_WINDOW);
     }
 };
-
-
-
-
-void signalShutdown(int)
-{
-    // Shutdown By Telling All Their Mainloops To Stop
-    std::cout << "Shutting Down...\n";
-    stopThreads = true;
-}
 
 float calculateAverageNoiseLevel(IAudioCaptureClient* pCaptureClient)
 {
@@ -506,16 +503,18 @@ void playMorseSound(const char* morseCode)
         {
         case '.':
             Beep(1000, dotWait);
-            std::this_thread::sleep_for(std::chrono::milliseconds(dotWait));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(dotWait));
             break;
         case '-':
             Beep(1000, dashWait);
-            std::this_thread::sleep_for(std::chrono::milliseconds(dotWait));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(dashWait));
             break;
         case ' ':
             std::this_thread::sleep_for(std::chrono::milliseconds(spaceWait));
             break;
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(dotWait / 4));
 
     }
 
@@ -529,50 +528,34 @@ void playMorseSound(const char* morseCode)
 // Postconditions:
 //   1.) Sets duration Of Continuous Audio Output
 //   2.) Sets signalDetected Showing If We Are Still In A Multi-Packet Signal
-void processAudioData(const float* data, UINT32 length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow, float& runningAverage, float& maxMagnitude)
+void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow)
 {
     std::thread([&audioWindow, data, length]() {
         audioWindow.RenderDiscrete(data, length);
         }).detach();
 
-        // Determine the maximum magnitude in the audio buffer for normalization
-        float maxMagnitude = 0.0f;
-        for (UINT32 i = 0; i < length; ++i)
-        {
-            if (fabs(data[i]) > maxMagnitude)
-            {
-                maxMagnitude = fabs(data[i]);
-            }
-        }
-
-        // Avoid division by zero
-        if (maxMagnitude == 0.0f)
-        {
-            maxMagnitude = 1.0f;
-        }
-
-        //std::cout << maxMagnitude << '\n';
-
         // Normalize the audio data and process it
         for (UINT32 i = 0; i < length; ++i)
         {
-            float normalizedSample = data[i] / maxMagnitude;
 
-            if (fabs(normalizedSample) > THRESHOLD)
+            if (fabs(data[i]) > 0.000005)
             {
+
                 if (!signalDetected)
                 {
                     signalDetected = true;
-                    signalStart = std::chrono::high_resolution_clock::now();
                 }
             }
             else
             {
                 if (signalDetected)
                 {
+
                     auto now = std::chrono::high_resolution_clock::now();
                     duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
                     signalDetected = false;
+                    //std::cout << "Detected signal duration: " << duration << " ms\n"; // Debug statement
+
                 }
             }
         }
@@ -591,7 +574,7 @@ void processAudioData(const float* data, UINT32 length, bool& signalDetected, st
 HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
 {
     HRESULT hr;
-    REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
+    REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC; // 1 second buffer duration
     IMMDeviceEnumerator* pEnumerator = NULL;
     IMMDevice* pDevice = NULL;
     IAudioClient* pAudioClient = NULL;
@@ -637,11 +620,60 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
         return hr;
     }
 
-    hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, hnsRequestedDuration, 0, pwfx, NULL);
-    if (FAILED(hr))
+    // Print the sample rate for verification
+    printf("Sample rate: %d Hz\n", pwfx->nSamplesPerSec);
+
+    hr = pAudioClient->Initialize(
+        AUDCLNT_SHAREMODE_SHARED,
+        AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+        hnsRequestedDuration,
+        0,
+        pwfx,
+        NULL
+    );
+
+    if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED)
     {
-        printf("Unable to initialize audio client: %x\n", hr);
-        return hr;
+        UINT32 nFrames;
+        hr = pAudioClient->GetBufferSize(&nFrames);
+        if (FAILED(hr))
+        {
+            printf("Unable to get buffer size: %x\n", hr);
+            return hr;
+        }
+
+        hnsRequestedDuration = (REFERENCE_TIME)((10000.0 * 1000 / pwfx->nSamplesPerSec * nFrames) + 0.5);
+
+        pAudioClient->Release();
+        CoTaskMemFree(pwfx);
+
+        hr = pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&pAudioClient);
+        if (FAILED(hr))
+        {
+            printf("Unable to re-activate audio client: %x\n", hr);
+            return hr;
+        }
+
+        hr = pAudioClient->GetMixFormat(&pwfx);
+        if (FAILED(hr))
+        {
+            printf("Unable to get mix format after re-activation: %x\n", hr);
+            return hr;
+        }
+
+        hr = pAudioClient->Initialize(
+            AUDCLNT_SHAREMODE_SHARED,
+            AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            hnsRequestedDuration,
+            0,
+            pwfx,
+            NULL
+        );
+        if (FAILED(hr))
+        {
+            printf("Unable to initialize audio client with aligned buffer size: %x\n", hr);
+            return hr;
+        }
     }
 
     hr = pAudioClient->GetService(__uuidof(IAudioCaptureClient), (void**)&pCaptureClient);
@@ -651,20 +683,18 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
         return hr;
     }
 
-    while (pCaptureClient->GetNextPacketSize(&packetLength) == S_OK && packetLength > 0)
+    HANDLE hCaptureEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (hCaptureEvent == NULL)
     {
-        hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
-        if (FAILED(hr))
-        {
-            printf("Unable to get buffer: %x\n", hr);
-            return hr;
-        }
-        hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
-        if (FAILED(hr))
-        {
-            printf("Unable to release buffer: %x\n", hr);
-            return hr;
-        }
+        printf("Unable to create capture event handle\n");
+        return E_FAIL;
+    }
+
+    hr = pAudioClient->SetEventHandle(hCaptureEvent);
+    if (FAILED(hr))
+    {
+        printf("Unable to set event handle: %x\n", hr);
+        return hr;
     }
 
     hr = pAudioClient->Start();
@@ -679,11 +709,10 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
     auto lastSignalEnd = std::chrono::high_resolution_clock::now();
     long long duration = 0;
     std::string currentWord;
-    float runningAverage = 1.0f;  // Initialize running average
-    float maxMagnitude = 0.1f;    // Initialize max magnitude
 
     while (!stopThreads)
     {
+
         hr = pCaptureClient->GetNextPacketSize(&packetLength);
         if (FAILED(hr))
         {
@@ -700,15 +729,15 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
                 break;
             }
 
-            processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration, *audioWindow, runningAverage, maxMagnitude);
+            processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration, *audioWindow);
 
-            if (!signalDetected && duration > 0)
+            if (!signalDetected && duration > 0.0f)
             {
                 if (15 <= duration && duration <= dotWait)
                 {
                     currentWord += '.';
                 }
-                else if (dotWait < duration && duration <= dashWait)
+                else if (dotWait < duration)
                 {
                     currentWord += '-';
                 }
@@ -721,16 +750,15 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
             {
                 if (std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::high_resolution_clock::now()) - lastSignalEnd).count() >= (spaceWait))
                 {
-
                     if (!currentWord.empty())
                     {
                         char letter = morseToAlphabet(currentWord);
                         std::cout << letter;
                         currentWord.clear();
                     }
-
                     std::cout << ' ';
                     lastSignalEnd = std::chrono::high_resolution_clock::now();
+
                 }
 
                 signalStart = std::chrono::high_resolution_clock::now();
@@ -743,10 +771,10 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow)
                 printf("Unable to release buffer: %x\n", hr);
                 break;
             }
+
+            std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
     }
 
     hr = pAudioClient->Stop();

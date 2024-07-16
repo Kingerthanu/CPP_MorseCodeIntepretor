@@ -4,8 +4,10 @@
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <audiopolicy.h>
+#include <endpointvolume.h>
 #include <chrono>
 #include <thread>
+#include <mmsystem.h>
 #include "Vertex_Array.h"
 #include "shader.h"
 #include <mutex>
@@ -13,16 +15,16 @@
 #include <vector>
 #include <cmath>
 #include <atomic>
+#include <string>
 
 #define PI 3.141592653589793238
-#define THRESHOLD 0.0
+#define THRESHOLD 0.3
 #define REFTIMES_PER_SEC  10000000
 
-static const unsigned int dotWait = 70;
+static const unsigned int dotWait = 100;
 static const unsigned int dashWait = dotWait * 3;
 static const unsigned int spaceWait = dashWait;
 std::atomic<bool> stopThreads(false);
-
 
 void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize) {
     unsigned int newSize = oldSize + chunkSize;
@@ -95,20 +97,74 @@ char morseToAlphabet(const std::string& morse) {
     return ' ';
 }
 
+void playSineWave(double frequency, double durationMs, int sampleRate) {
+    const float amplitude = 0.3f;
+    int samplesCount = static_cast<int>((durationMs / 1000.0) * sampleRate);
+    float* buffer = new float[samplesCount];
+
+    for (int i = 0; i < samplesCount; ++i) {
+        buffer[i] = amplitude * sin(frequency * i / sampleRate);
+    }
+
+    WAVEFORMATEX wfx = {};
+    wfx.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+    wfx.nChannels = 1; // Mono sound
+    wfx.nSamplesPerSec = sampleRate;
+    wfx.nAvgBytesPerSec = sampleRate * sizeof(float);
+    wfx.nBlockAlign = sizeof(float);
+    wfx.wBitsPerSample = 32; // 16-bit PCM sound
+
+    HWAVEOUT hWaveOut;
+    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR) {
+        std::cerr << "Error opening waveform output device." << std::endl;
+        delete[] buffer;
+        return;
+    }
+
+    WAVEHDR waveHeader = {};
+    waveHeader.lpData = reinterpret_cast<LPSTR>(buffer);
+    waveHeader.dwBufferLength = samplesCount * sizeof(float);
+    waveHeader.dwFlags = 0;
+    waveHeader.dwLoops = 0;
+
+    if (waveOutPrepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+        std::cerr << "Error preparing waveform header." << std::endl;
+        waveOutClose(hWaveOut);
+        delete[] buffer;
+        return;
+    }
+
+    if (waveOutWrite(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+        std::cerr << "Error writing waveform data." << std::endl;
+        waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR));
+        waveOutClose(hWaveOut);
+        delete[] buffer;
+        return;
+    }
+
+    // Wait until the sound has finished playing
+    while (waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) == WAVERR_STILLPLAYING) {
+       std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    waveOutClose(hWaveOut);
+    delete[] buffer;
+}
+
 void playMorseSound(const char* morseCode) {
     while (*morseCode != '\0' && !stopThreads) {
         switch (*morseCode++) {
         case '.':
-            Beep(1000, dotWait);
+            playSineWave(1000, dotWait, 48000);
             break;
         case '-':
-            Beep(1000, dashWait);
+            playSineWave(1000, dashWait, 48000);
             break;
         case ' ':
             std::this_thread::sleep_for(std::chrono::milliseconds(spaceWait));
             break;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(dotWait / 4));
+
     }
 }
 
@@ -170,7 +226,6 @@ char* alphabetToMorse(char*& toConvert) {
     enlargeList(morseBuffer, listSize, "\0", 1);
     return morseBuffer;
 }
-
 
 void signalShutdown(int) {
     std::cout << "Shutting Down...\n";
@@ -254,19 +309,61 @@ public:
     }
 };
 
-void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow) {
+float getNormalizationFactor(IMMDevice* pDevice) {
+    HRESULT hr;
+    IAudioMeterInformation* pMeterInfo = NULL;
+    float peakValue = 0.0f;
+
+    hr = pDevice->Activate(__uuidof(IAudioMeterInformation), CLSCTX_ALL, NULL, (void**)&pMeterInfo);
+    if (SUCCEEDED(hr))
+    {
+        hr = pMeterInfo->GetPeakValue(&peakValue);
+        pMeterInfo->Release();
+    }
+
+    if (peakValue > 0.0f) {
+        return 1.0f / peakValue;
+    }
+
+    return 1.0f; // Return default normalization factor if unable to calculate
+}
+
+float getMasterVolumeLevel(IMMDevice* pDevice) {
+    IAudioEndpointVolume* pEndpointVolume = NULL;
+    HRESULT hr = pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&pEndpointVolume);
+    if (FAILED(hr)) {
+        std::cerr << "Unable to activate endpoint volume: " << std::hex << hr << std::endl;
+        return 1.0f; // Return default volume if unable to get the actual value
+    }
+
+    float volumeLevel = 0.0f;
+    hr = pEndpointVolume->GetMasterVolumeLevelScalar(&volumeLevel);
+    if (FAILED(hr)) {
+        std::cerr << "Unable to get master volume level: " << std::hex << hr << std::endl;
+        volumeLevel = 1.0f; // Return default volume if unable to get the actual value
+    }
+
+    pEndpointVolume->Release();
+    return volumeLevel;
+}
+
+void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow, float normalizationFactor, float masterVolume) {
+    float scaledThreshold = THRESHOLD * masterVolume;
+
     std::thread([&audioWindow, data, length]() {
         audioWindow.RenderDiscrete(data, length);
         }).detach();
 
         for (UINT32 i = 0; i < length; ++i) {
+            float normalizedData = fabs(data[i]) * normalizationFactor;
 
-            std::cout << data[i] << '\n';
+            //  std::cout << fabs(data[i]) << '\n';
 
-            if (fabs(data[i]) > THRESHOLD) {
+            if (0.0f < normalizedData) {
                 if (!signalDetected) {
+                    //  std::cout << fabs(data[i]) << '\n';
                     signalDetected = true;
-                    signalStart = std::chrono::high_resolution_clock::now();
+                    signalStart = std::chrono::high_resolution_clock::now(); 
                 }
             }
             else {
@@ -274,20 +371,20 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
                     auto now = std::chrono::high_resolution_clock::now();
                     duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
                     signalDetected = false;
-                    //std::cout << "Detected signal duration: " << duration << " ms\n"; // Debug statement
+                    //  std::cout << "Duration: " << duration << '\n';
+                    
                 }
             }
         }
 }
 
-HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow) {
+HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow) {
     HRESULT hr;
     REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
     IMMDeviceEnumerator* pEnumerator = NULL;
     IMMDevice* pDevice = NULL;
     IAudioClient3* pAudioClient = NULL;
     IAudioCaptureClient* pCaptureClient = NULL;
-    WAVEFORMATEX* pwfx = NULL;
     UINT32 packetLength = 0;
     UINT32 numFramesAvailable;
     BYTE* pData;
@@ -310,6 +407,9 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow) {
         printf("Unable to get default audio endpoint: %x\n", hr);
         return hr;
     }
+
+    float normalizationFactor = getNormalizationFactor(pDevice);
+    float masterVolume = getMasterVolumeLevel(pDevice);
 
     hr = pDevice->Activate(__uuidof(IAudioClient3), CLSCTX_ALL, NULL, (void**)&pAudioClient);
     if (FAILED(hr)) {
@@ -427,7 +527,7 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow) {
                 break;
             }
 
-            processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration, *audioWindow);
+            processAudioData((const float*)pData, numFramesAvailable, signalDetected, signalStart, duration, *audioWindow, normalizationFactor, masterVolume);
 
             if (!signalDetected && duration > 0.0f) {
                 if (15 <= duration && duration <= dotWait) {
@@ -437,11 +537,11 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow) {
                     currentWord += '-';
                 }
 
-                duration = 0;
+                duration = 0.0f;
                 signalStart = std::chrono::high_resolution_clock::now();
                 lastSignalEnd = std::chrono::high_resolution_clock::now();
             }
-            else if (duration <= 0) {
+            else if (!signalDetected) {
                 if (std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::high_resolution_clock::now()) - lastSignalEnd).count() >= (spaceWait)) {
                     if (!currentWord.empty()) {
                         char letter = morseToAlphabet(currentWord);
@@ -481,7 +581,8 @@ HRESULT CaptureAudio(WINDOW_AUDIOWAVES* audioWindow) {
     return hr;
 }
 
-int main() {
+int main()
+{
     signal(SIGINT, signalShutdown);
 
     char* userInput = new char[200];
@@ -499,7 +600,8 @@ int main() {
 
     WINDOW_AUDIOWAVES audioWindow(800, 800);
 
-    std::thread captureThread(CaptureAudio, &audioWindow);
+    WAVEFORMATEX wfx;
+    std::thread captureThread(CaptureAudio, &wfx, &audioWindow);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(7500));
 

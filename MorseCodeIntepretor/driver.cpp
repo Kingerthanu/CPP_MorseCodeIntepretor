@@ -18,12 +18,13 @@
 #include <string>
 
 #define PI 3.141592653589793238
-#define THRESHOLD 0.3
+#define THRESHOLD 0.4
 #define REFTIMES_PER_SEC  10000000
 
-static const unsigned int dotWait = 100;
-static const unsigned int dashWait = dotWait * 3;
-static const unsigned int spaceWait = dashWait;
+// Morse Timing Constants
+static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time
+static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait Time
+static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
 std::atomic<bool> stopThreads(false);
 
 void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize) {
@@ -103,7 +104,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate) {
     float* buffer = new float[samplesCount];
 
     for (int i = 0; i < samplesCount; ++i) {
-        buffer[i] = 0.7f + (amplitude * sin(2.0 * PI * frequency * i / sampleRate));
+        buffer[i] = 0.8f + (amplitude * sin(2.0 * PI * frequency * i / sampleRate));
     }
 
     WAVEFORMATEX wfx = {};
@@ -238,8 +239,11 @@ private:
     GLFWwindow* _WINDOW;
     Shader contextShader;
     std::mutex contextWand;
+
+    // Base-Line Radius Of Audio-Wave Circle
     const float _circleRadius = 0.65f;
 
+    // Function to generate vertices for a segmented circle
     std::vector<Vertex> generateSegmentedCircle(const float& centerX, const float& centerY, const float* audioData, const UINT32& segmentCount) {
         std::vector<Vertex> vertices;
         float angleStep = 2.0f * PI / segmentCount;

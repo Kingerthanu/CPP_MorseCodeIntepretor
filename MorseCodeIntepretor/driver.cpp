@@ -18,7 +18,7 @@
 #include <string>
 
 #define PI 3.141592653589793238
-#define THRESHOLD 0.4
+#define THRESHOLD 0.375
 #define REFTIMES_PER_SEC  10000000
 
 // Morse Timing Constants
@@ -103,8 +103,19 @@ void playSineWave(double frequency, double durationMs, int sampleRate) {
     int samplesCount = static_cast<int>((durationMs / 1000.0) * sampleRate);
     float* buffer = new float[samplesCount];
 
-    for (int i = 0; i < samplesCount; ++i) {
+    // Duration of the fade-out in milliseconds
+    double fadeOutDurationMs = 35.0;
+    int fadeOutSamplesCount = static_cast<int>((fadeOutDurationMs / 1000.0) * sampleRate);
+
+    for (int i = 0; i < samplesCount; ++i) 
+    {
         buffer[i] = 0.8f + (amplitude * sin(2.0 * PI * frequency * i / sampleRate));
+
+        // Apply more aggressive exponential fade-out effect
+        if (i >= samplesCount - fadeOutSamplesCount) {
+            float fadeOutFactor = static_cast<float>(samplesCount - i) / fadeOutSamplesCount;
+            buffer[i] *= exp(-50.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
+        }
     }
 
     WAVEFORMATEX wfx = {};
@@ -113,7 +124,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate) {
     wfx.nSamplesPerSec = sampleRate;
     wfx.nAvgBytesPerSec = sampleRate * sizeof(float);
     wfx.nBlockAlign = sizeof(float);
-    wfx.wBitsPerSample = 32; // 16-bit PCM sound
+    wfx.wBitsPerSample = 32; // 32-bit float sound
 
     HWAVEOUT hWaveOut;
     if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR) {
@@ -145,12 +156,13 @@ void playSineWave(double frequency, double durationMs, int sampleRate) {
 
     // Wait until the sound has finished playing
     while (waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) == WAVERR_STILLPLAYING) {
-       std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     waveOutClose(hWaveOut);
     delete[] buffer;
 }
+
 
 void playMorseSound(const char* morseCode) {
     while (*morseCode != '\0' && !stopThreads) {

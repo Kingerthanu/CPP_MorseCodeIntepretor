@@ -98,12 +98,12 @@ char morseToAlphabet(const std::string& morse) {
 }
 
 void playSineWave(double frequency, double durationMs, int sampleRate) {
-    const float amplitude = 0.3f;
+    const float amplitude = 0.1f;
     int samplesCount = static_cast<int>((durationMs / 1000.0) * sampleRate);
     float* buffer = new float[samplesCount];
 
     for (int i = 0; i < samplesCount; ++i) {
-        buffer[i] = amplitude * sin(frequency * i / sampleRate);
+        buffer[i] = 0.7f + (amplitude * sin(2.0 * PI * frequency * i / sampleRate));
     }
 
     WAVEFORMATEX wfx = {};
@@ -355,13 +355,12 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
         }).detach();
 
         for (UINT32 i = 0; i < length; ++i) {
-            float normalizedData = fabs(data[i]) * normalizationFactor;
 
-            //  std::cout << fabs(data[i]) << '\n';
+            //std::cout << fabs(data[i]) << '\n';
 
-            if (0.0f < normalizedData) {
+            if (scaledThreshold <= fabs(data[i])) {
                 if (!signalDetected) {
-                    //  std::cout << fabs(data[i]) << '\n';
+                    //std::cout << fabs(data[i]) << '\n';
                     signalDetected = true;
                     signalStart = std::chrono::high_resolution_clock::now(); 
                 }
@@ -371,7 +370,7 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
                     auto now = std::chrono::high_resolution_clock::now();
                     duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
                     signalDetected = false;
-                    //  std::cout << "Duration: " << duration << '\n';
+                    //std::cout << "Duration: " << duration << '\n';
                     
                 }
             }

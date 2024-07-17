@@ -18,7 +18,7 @@
 #include <string>
 
 #define PI 3.141592653589793238
-#define THRESHOLD 0.375
+#define THRESHOLD 0.4
 #define REFTIMES_PER_SEC  10000000
 
 // Morse Timing Constants
@@ -98,13 +98,15 @@ char morseToAlphabet(const std::string& morse) {
     return ' ';
 }
 
-void playSineWave(double frequency, double durationMs, int sampleRate) {
+void playSineWave(double frequency, double durationMs, int sampleRate) 
+{
+
     const float amplitude = 0.1f;
     int samplesCount = static_cast<int>((durationMs / 1000.0) * sampleRate);
     float* buffer = new float[samplesCount];
 
     // Duration of the fade-out in milliseconds
-    double fadeOutDurationMs = 35.0;
+    double fadeOutDurationMs = 10;
     int fadeOutSamplesCount = static_cast<int>((fadeOutDurationMs / 1000.0) * sampleRate);
 
     for (int i = 0; i < samplesCount; ++i) 
@@ -114,7 +116,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate) {
         // Apply more aggressive exponential fade-out effect
         if (i >= samplesCount - fadeOutSamplesCount) {
             float fadeOutFactor = static_cast<float>(samplesCount - i) / fadeOutSamplesCount;
-            buffer[i] *= exp(-50.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
+            buffer[i] *= exp(-13.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
         }
     }
 
@@ -364,7 +366,9 @@ float getMasterVolumeLevel(IMMDevice* pDevice) {
 }
 
 void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow, float normalizationFactor, float masterVolume) {
-    float scaledThreshold = THRESHOLD * masterVolume;
+    float scaledThreshold =( (THRESHOLD * masterVolume) / (4.575f - (masterVolume * 3.575f)));
+    //std::cout << scaledThreshold << '\n';
+    
 
     std::thread([&audioWindow, data, length]() {
         audioWindow.RenderDiscrete(data, length);

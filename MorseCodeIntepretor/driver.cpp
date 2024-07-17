@@ -57,6 +57,8 @@ void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert,
         toEnlargen[characterStep] = tmpHandler[characterStep++];
     }
     delete[] tmpHandler;
+
+    // Now Insert All New Characters
     while (insertStep < chunkSize) 
     {
         toEnlargen[characterStep + insertStep] = toInsert[insertStep++];
@@ -178,7 +180,8 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
 
     // Using Our Format, Open Up A Session Of Audio Input
     HWAVEOUT hWaveOut;
-    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR) {
+    if (waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR) 
+    {
         std::cerr << "Error opening waveform output device." << std::endl;
         delete[] buffer;
         return;
@@ -192,7 +195,8 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
     waveHeader.dwLoops = 0;
 
     // Send Into API Our Buffer
-    if (waveOutPrepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+    if (waveOutPrepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) 
+    {
         std::cerr << "Error preparing waveform header." << std::endl;
         waveOutClose(hWaveOut);
         delete[] buffer;
@@ -200,7 +204,8 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
     }
 
     // Send Over Our Audio Buffer
-    if (waveOutWrite(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+    if (waveOutWrite(hWaveOut, &waveHeader, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) 
+    {
         std::cerr << "Error writing waveform data." << std::endl;
         waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR));
         waveOutClose(hWaveOut);
@@ -209,7 +214,8 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
     }
 
     // Wait Until Our Sound Has Concluded
-    while (waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) == WAVERR_STILLPLAYING) {
+    while (waveOutUnprepareHeader(hWaveOut, &waveHeader, sizeof(WAVEHDR)) == WAVERR_STILLPLAYING) 
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
@@ -337,140 +343,150 @@ char* alphabetToMorse(char*& toConvert)
 
 void signalShutdown(int) 
 {
+
     // Shutdown By Telling All Their Mainloops To Stop
     std::cout << "Shutting Down...\n";
     stopThreads = true;
+
 }
 
-class WINDOW_AUDIOWAVES {
-private:
-    // Low-Level ID's Of Vertex Array And Vertex Buffer For Window Rendering
-    GLuint VAO, VBO;
+class WINDOW_AUDIOWAVES 
+{
+    private:
+        // Low-Level ID's Of Vertex Array And Vertex Buffer For Window Rendering
+        GLuint VAO, VBO;
     
-    // Current GLFW Window Being Draw On
-    GLFWwindow* _WINDOW;
+        // Current GLFW Window Being Draw On
+        GLFWwindow* _WINDOW;
     
-    // Shader Used To Render Buffer Data
-    Shader contextShader;
+        // Shader Used To Render Buffer Data
+        Shader contextShader;
 
-    // Rendering Synchronization Mutex
-    std::mutex contextWand;
+        // Rendering Synchronization Mutex
+        std::mutex contextWand;
 
-    // Base-Line Radius Of Audio-Wave Circle
-    const float _circleRadius = 0.65f;
+        // Base-Line Radius Of Audio-Wave Circle
+        const float _circleRadius = 0.65f;
 
 
-    // Function To Generate Vertices For A Segmented Circle
-    std::vector<Vertex> generateSegmentedCircle(const float& centerX, const float& centerY, const float* audioData, const UINT32& segmentCount) 
-    {
-
-        // Hold Vertices Of Current Circle
-        std::vector<Vertex> vertices;
-
-        // How Much Each Angle Is Offsetted From Eachother
-        float angleStep = 2.0f * PI / segmentCount;
-
-        // Render Each Segment
-        for (UINT32 i = 0; i < segmentCount; ++i) 
+        // Function To Generate Vertices For A Segmented Circle
+        std::vector<Vertex> generateSegmentedCircle(const float& centerX, const float& centerY, const float* audioData, const UINT32& segmentCount) 
         {
-            // Normalize Our Audio Sample To A Variable-Const Used As Offset From Origin
-            float normalizedSample = fabs(audioData[i]) * 0.75f;
 
-            // Current Angle Of 0 Of Segment Vertex
-            float angle = i * angleStep;
+            // Hold Vertices Of Current Circle
+            std::vector<Vertex> vertices;
 
-            // Push Back Our Vertex Based Upon Offset From Center And Baseline Offset
-            vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + normalizedSample) * cos(angle), centerY + (_circleRadius + normalizedSample) * sin(angle)), glm::vec3(0.93f, 0.15f, 0.45f) });
+            // How Much Each Angle Is Offsetted From Eachother
+            float angleStep = 2.0f * PI / segmentCount;
+
+            // Render Each Segment
+            for (UINT32 i = 0; i < segmentCount; ++i) 
+            {
+                // Normalize Our Audio Sample To A Variable-Const Used As Offset From Origin
+                float normalizedSample = fabs(audioData[i]) * 0.75f;
+
+                // Current Angle Of 0 Of Segment Vertex
+                float angle = i * angleStep;
+
+                // Push Back Our Vertex Based Upon Offset From Center And Baseline Offset
+                vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + normalizedSample) * cos(angle), centerY + (_circleRadius + normalizedSample) * sin(angle)), glm::vec3(0.93f, 0.15f, 0.45f) });
+            }
+
+            // Add First Position Again To Stitch Together Difference
+            vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + (fabs(audioData[0]) * 0.75f)), 0), glm::vec3(0.93f, 0.15f, 0.45f) });
+            return vertices;
+
         }
 
-        // Add First Position Again To Stitch Together Difference
-        vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + (fabs(audioData[0]) * 0.75f)), 0), glm::vec3(0.93f, 0.15f, 0.45f) });
-        return vertices;
+    public:
+        WINDOW_AUDIOWAVES(const unsigned int& newWidth, const unsigned int& newHeight) 
+        {
 
-    }
+            // Initialize GLFW and create the main window
+            glfwInit();
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-public:
-    WINDOW_AUDIOWAVES(const unsigned int& newWidth, const unsigned int& newHeight) 
-    {
+            this->_WINDOW = glfwCreateWindow(newWidth, newHeight, "Audio Waves", NULL, NULL);
+            if (!this->_WINDOW) {
+                glfwTerminate();
+                return;
+            }
+            glfwMakeContextCurrent(this->_WINDOW);
+            gladLoadGL();
+            this->contextShader = Shader("default.vert", "default.frag");
+            this->contextShader.Activate();
 
-        // Initialize GLFW and create the main window
-        glfwInit();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glfwSwapBuffers(this->_WINDOW);
+            glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
 
-        this->_WINDOW = glfwCreateWindow(newWidth, newHeight, "Audio Waves", NULL, NULL);
-        if (!this->_WINDOW) {
-            glfwTerminate();
-            return;
+            // Generate and bind the VAO
+            glGenVertexArrays(1, &VAO);
+            glBindVertexArray(VAO);
+
+            // Generate and bind the VBO
+            glGenBuffers(1, &VBO);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        
+            // Link vertex attributes
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 2));
+            glEnableVertexAttribArray(1);
+
+            // Poll Initial Events To Avoid Blue-Circle Hover
+            glfwPollEvents();
+            glfwMakeContextCurrent(nullptr);
+
         }
-        glfwMakeContextCurrent(this->_WINDOW);
-        gladLoadGL();
-        this->contextShader = Shader("default.vert", "default.frag");
-        this->contextShader.Activate();
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glfwSwapBuffers(this->_WINDOW);
-        glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
+        void RenderDiscrete(const float* audioData, const UINT32 length) 
+        {
 
-        // Generate and bind the VAO
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
+            // Lock the mutex to synchronize access to OpenGL context
+            std::lock_guard<std::mutex> lock(contextWand);
 
-        // Generate and bind the VBO
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            // Make the window's OpenGL context current
+            glfwMakeContextCurrent(this->_WINDOW);
+
+            // Clear the color buffer
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            // Bind VAO And VBO
+            glBindVertexArray(VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+            // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
+            glBufferData(GL_ARRAY_BUFFER, (length + 1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
         
-        // Link vertex attributes
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 2));
-        glEnableVertexAttribArray(1);
+            // Draw All Lines
+            glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
 
-        // Poll Initial Events To Avoid Blue-Circle Hover
-        glfwPollEvents();
-        glfwMakeContextCurrent(nullptr);
+            // Swap the front and back buffers
+            glfwSwapBuffers(this->_WINDOW);
+            glfwMakeContextCurrent(nullptr);
 
-    }
+        }
 
-    void RenderDiscrete(const float* audioData, const UINT32 length) 
-    {
+        static void resize_callback(GLFWwindow* window, int width, int height) 
+        {
 
-        // Lock the mutex to synchronize access to OpenGL context
-        std::lock_guard<std::mutex> lock(contextWand);
+            // Tell Open-GL Our Canvas Size In Pixels
+            glViewport(0, 0, width, height);
 
-        // Make the window's OpenGL context current
-        glfwMakeContextCurrent(this->_WINDOW);
+        }
 
-        // Clear the color buffer
-        glClear(GL_COLOR_BUFFER_BIT);
+        ~WINDOW_AUDIOWAVES() 
+        {
 
-        // Bind VAO And VBO
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glDeleteVertexArrays(1, &VAO);
+            glDeleteBuffers(1, &VBO);
+            glfwDestroyWindow(this->_WINDOW);
 
-        // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
-        glBufferData(GL_ARRAY_BUFFER, (length + 1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
-        
-        // Draw All Lines
-        glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
-
-        // Swap the front and back buffers
-        glfwSwapBuffers(this->_WINDOW);
-        glfwMakeContextCurrent(nullptr);
-
-    }
-
-    static void resize_callback(GLFWwindow* window, int width, int height) {
-        glViewport(0, 0, width, height);
-    }
-
-    ~WINDOW_AUDIOWAVES() {
-        glDeleteVertexArrays(1, &VAO);
-        glDeleteBuffers(1, &VBO);
-        glfwDestroyWindow(this->_WINDOW);
-    }
+        }
 };
 
 float getNormalizationFactor(IMMDevice* pDevice) 
@@ -843,6 +859,7 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
 
 int main()
 {
+
     // Register Signal Handler
     signal(SIGINT, signalShutdown);
 
@@ -883,4 +900,5 @@ int main()
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     return 0;
+
 }

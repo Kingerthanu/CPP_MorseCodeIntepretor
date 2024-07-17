@@ -132,7 +132,7 @@ char morseToAlphabet(const std::string& morse)
     }
 
     // If Empty, Return Nothing.
-    return '';
+    return ' ';
 
 }
 
@@ -575,7 +575,7 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
                     auto now = std::chrono::high_resolution_clock::now();
                     duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - signalStart).count();
 
-                `   // Also State We Are Done Detecting This Current Entry
+                    // Also State We Are Done Detecting This Current Entry
                     signalDetected = false;
                     //std::cout << "Duration: " << duration << '\n';
                     

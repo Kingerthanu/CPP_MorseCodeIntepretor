@@ -26,7 +26,7 @@ If You Know The Tempo Of A Current Morse Code Transaction You Can Run The Listen
 
 The Listening Thread Will Pass Its Audio Buffer To A Window In Which Will Chart/Graph All Points To Show Us The Waveform Interpolation Of Our PC's Current Audio Ouput. Will Help Point Out Given Morse And Its Relative Range For Sensitivity As Certain Noises Like Musical Snares Or 808s Can Cause Unneccesary Blending.
 
-Currently Works With Light Background Noise Where The Morse Code Is One Of The Primary Sounds. Music With High Snaps Seem To Jank Up The Prog. But Have Been Tweaking Valid Sample Ranges.
+Currently Works With Heavy Background Noise Where The Morse Code Is One Of The Primary Sounds. Music With High Snaps Seem To Jank Up The Prog. But Have Been Tweaking Valid Sample Ranges.
 
 <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/739a779e-c28a-43d7-9d7c-9576a12beae8" alt="Cornstarch <3" width="65" height="49">
 

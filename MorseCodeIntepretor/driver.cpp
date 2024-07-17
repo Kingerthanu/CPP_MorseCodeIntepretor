@@ -17,7 +17,13 @@
 #include <atomic>
 #include <string>
 
+// Tell During Compile-Time For Compiler To Swap Defs Out With Literal
 #define PI 3.141592653589793238
+
+/*
+   How Sensitive We Want Our Morse To Start To Be Detected At (Needs To Be Adjusted Based Upon Volume)
+   Lower Value -> Audio Of Lower Frequencies Considered [Drop When Lower Background Noise] |  Higher Value -> Audio Of Higher Frequencies Considered [Up When Higher Background Noise]
+*/
 #define THRESHOLD 0.4
 #define REFTIMES_PER_SEC  10000000
 
@@ -27,6 +33,13 @@ static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait 
 static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
 std::atomic<bool> stopThreads(false);
 
+
+// Preconditions:
+//   1.) chunkSize Is The Amount Of Characters In toInsert's Buffer
+//   2.) oldSize Is The Amount Of Characters In toEnlargen's Buffer
+// Postconditions:
+//   1.) Will Return A New List In toEnlargen's Ptr Holding All toEnlargen's Characters + toInsert Appended At The End
+//   2.) oldSize Will Be Updated To The New Size Of toEnlargen
 void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert, const unsigned int& chunkSize) {
     unsigned int newSize = oldSize + chunkSize;
     char* tmpHandler = toEnlargen;
@@ -44,59 +57,67 @@ void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert,
     oldSize = newSize;
 }
 
+// Preconditions:
+//   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep
+//   2.) Expects Input To Be Purely Morse Code
+//   3.) Spaces And Other Non-Morse Chars Will Be Set To ' '
+// Postconditions:
+//   1.) Returns New Char Buffer Holding Morse Conversion Of morse
+//   2.) '\0' Is Added At End Of Char Buffer (C-Style String)
 char morseToAlphabet(const std::string& morse) {
     switch (morse.length()) {
     case 1:
         if (morse == ".") return 'E';
-        if (morse == "-") return 'T';
+        else if (morse == "-") return 'T';
         break;
     case 2:
         if (morse == "..") return 'I';
-        if (morse == ".-") return 'A';
-        if (morse == "-.") return 'N';
-        if (morse == "--") return 'M';
+        else if (morse == ".-") return 'A';
+        else if (morse == "-.") return 'N';
+        else if (morse == "--") return 'M';
         break;
     case 3:
         if (morse == "...") return 'S';
-        if (morse == "..-") return 'U';
-        if (morse == ".-.") return 'R';
-        if (morse == ".--") return 'W';
-        if (morse == "-..") return 'D';
-        if (morse == "-.-") return 'K';
-        if (morse == "--.") return 'G';
-        if (morse == "---") return 'O';
+        else if (morse == "..-") return 'U';
+        else if (morse == ".-.") return 'R';
+        else if (morse == ".--") return 'W';
+        else if (morse == "-..") return 'D';
+        else if (morse == "-.-") return 'K';
+        else if (morse == "--.") return 'G';
+        else if (morse == "---") return 'O';
         break;
     case 4:
         if (morse == "....") return 'H';
-        if (morse == "...-") return 'V';
-        if (morse == "..-.") return 'F';
-        if (morse == ".-..") return 'L';
-        if (morse == ".--.") return 'P';
-        if (morse == ".---") return 'J';
-        if (morse == "-...") return 'B';
-        if (morse == "-..-") return 'X';
-        if (morse == "-.-.") return 'C';
-        if (morse == "-.--") return 'Y';
-        if (morse == "--..") return 'Z';
-        if (morse == "--.-") return 'Q';
+        else if (morse == "...-") return 'V';
+        else if (morse == "..-.") return 'F';
+        else if (morse == ".-..") return 'L';
+        else if (morse == ".--.") return 'P';
+        else if (morse == ".---") return 'J';
+        else if (morse == "-...") return 'B';
+        else if (morse == "-..-") return 'X';
+        else if (morse == "-.-.") return 'C';
+        else if (morse == "-.--") return 'Y';
+        else if (morse == "--..") return 'Z';
+        else if (morse == "--.-") return 'Q';
         break;
-    case 5:
+    case 5: // Handling Numbers
         if (morse == "-----") return '0';
-        if (morse == ".----") return '1';
-        if (morse == "..---") return '2';
-        if (morse == "...--") return '3';
-        if (morse == "....-") return '4';
-        if (morse == ".....") return '5';
-        if (morse == "-....") return '6';
-        if (morse == "--...") return '7';
-        if (morse == "---..") return '8';
-        if (morse == "----.") return '9';
+        else if (morse == ".----") return '1';
+        else if (morse == "..---") return '2';
+        else if (morse == "...--") return '3';
+        else if (morse == "....-") return '4';
+        else if (morse == ".....") return '5';
+        else if (morse == "-....") return '6';
+        else if (morse == "--...") return '7';
+        else if (morse == "---..") return '8';
+        else if (morse == "----.") return '9';
         break;
     default:
         return ' ';
     }
     return ' ';
 }
+
 
 void playSineWave(double frequency, double durationMs, int sampleRate) 
 {
@@ -166,6 +187,13 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
 }
 
 
+// Preconditions:
+//   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep | ' ' -> long wait 
+//   2.) Will Ignore Any Non-Morse Characters In morseCode
+// Postconditions:
+//   1.) Will Call Windows Beep Function In Which Will Sound Each Character Concurrently For Their Duration
+//   2.) Will Stop If Reached End Of Morse Code
+//   3.) Will Wait 1/4 The Given Single Unit Time Between Beeps To Synchronize
 void playMorseSound(const char* morseCode) {
     while (*morseCode != '\0' && !stopThreads) {
         switch (*morseCode++) {
@@ -183,6 +211,14 @@ void playMorseSound(const char* morseCode) {
     }
 }
 
+// Preconditions:
+//   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep
+//   2.) Expects Input To Be Purely Alphabetic
+//   3.) Spaces And Other Non-Alphabetic Chars Will Be Set To ' '
+//   4.) Each Letter Appends ' ' At End For End-Of-Char In Morse
+// Postconditions:
+//   1.) Returns New Char Buffer Holding Morse Code Conversion Of toConvert
+//   2.) '\0' Is Added At End Of Char Buffer (C-Style String)
 char* alphabetToMorse(char*& toConvert) {
     int messageLength = 0;
     while (toConvert[messageLength] != '\0') {
@@ -242,7 +278,9 @@ char* alphabetToMorse(char*& toConvert) {
     return morseBuffer;
 }
 
-void signalShutdown(int) {
+void signalShutdown(int) 
+{
+    // Shutdown By Telling All Their Mainloops To Stop
     std::cout << "Shutting Down...\n";
     stopThreads = true;
 }
@@ -266,12 +304,16 @@ private:
             float angle = i * angleStep;
             vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + normalizedSample) * cos(angle), centerY + (_circleRadius + normalizedSample) * sin(angle)), glm::vec3(0.93f, 0.15f, 0.45f) });
         }
+
+        // Add First Position Again To Stitch Together Difference
         vertices.push_back(Vertex{ glm::vec2(centerX + (_circleRadius + (fabs(audioData[0]) * 0.75f)), 0), glm::vec3(0.93f, 0.15f, 0.45f) });
         return vertices;
     }
 
 public:
-    WINDOW_AUDIOWAVES(const unsigned int& newWidth, const unsigned int& newHeight) {
+    WINDOW_AUDIOWAVES(const unsigned int& newWidth, const unsigned int& newHeight) 
+    {
+        // Initialize GLFW and create the main window
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -292,26 +334,47 @@ public:
         glfwSwapBuffers(this->_WINDOW);
         glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
 
+        // Generate and bind the VAO
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
+
+        // Generate and bind the VBO
         glGenBuffers(1, &VBO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        
+        // Link vertex attributes
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 2));
         glEnableVertexAttribArray(1);
+
+        // Poll Initial Events To Avoid Blue-Circle Hover
         glfwPollEvents();
         glfwMakeContextCurrent(nullptr);
     }
 
-    void RenderDiscrete(const float* audioData, const UINT32 length) {
+    void RenderDiscrete(const float* audioData, const UINT32 length) 
+    {
+        // Lock the mutex to synchronize access to OpenGL context
         std::lock_guard<std::mutex> lock(contextWand);
+
+        // Make the window's OpenGL context current
         glfwMakeContextCurrent(this->_WINDOW);
+
+        // Clear the color buffer
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // Bind VAO And VBO
         glBindVertexArray(VAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+        // Update Buffer Data Using glBufferData With GL_DYNAMIC_DRAW
         glBufferData(GL_ARRAY_BUFFER, (length + 1) * sizeof(Vertex), generateSegmentedCircle(0.0f, 0.0f, audioData, length).data(), GL_DYNAMIC_DRAW);
+        
+        // Draw All Lines
         glDrawArrays(GL_LINE_STRIP, 0, (length + 1));
+
+        // Swap the front and back buffers
         glfwSwapBuffers(this->_WINDOW);
         glfwMakeContextCurrent(nullptr);
     }
@@ -365,6 +428,14 @@ float getMasterVolumeLevel(IMMDevice* pDevice) {
     return volumeLevel;
 }
 
+
+// Preconditions:
+//   1.) Will Grab Float-Sound Input In data With Amount Of Samples In length
+//   2.) Will Use duration To Help Callee Disabiguate Type Of Morse Code From Duration Of Sound
+//   3.) signalStart Will Be Made From Callee After First Detection In This Function Using signalDetected Callback
+// Postconditions:
+//   1.) Sets duration Of Continuous Audio Output
+//   2.) Sets signalDetected Showing If We Are Still In A Multi-Packet Signal
 void processAudioData(const float* data, UINT32& length, bool& signalDetected, std::chrono::high_resolution_clock::time_point& signalStart, long long& duration, WINDOW_AUDIOWAVES& audioWindow, float normalizationFactor, float masterVolume) {
     float scaledThreshold =( (THRESHOLD * masterVolume) / (4.575f - (masterVolume * 3.575f)));
     //std::cout << scaledThreshold << '\n';
@@ -374,6 +445,7 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
         audioWindow.RenderDiscrete(data, length);
         }).detach();
 
+        // Process Each Audio Data Frame
         for (UINT32 i = 0; i < length; ++i) {
 
             //std::cout << fabs(data[i]) << '\n';
@@ -397,6 +469,12 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
         }
 }
 
+
+// Preconditions:
+//   1.) Listens To Audio Output For Sound Samples Above A Given Threshold, Interpolating Length Of Message For Morse Type
+//   2.) Ignores Any Morse Previously Said In Buffer Before Opening
+// Postconditions:
+//   1.) Prints To Console The Interpreted Morse Code Character Translation Of Audio Output On System
 HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow) {
     HRESULT hr;
     REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
@@ -602,12 +680,15 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow) {
 
 int main()
 {
+    // Register signal handler
     signal(SIGINT, signalShutdown);
 
+    // Grab User-Message
     char* userInput = new char[200];
     std::cout << "Enter Message In English To Convert Into Morse: \n";
     std::cin.getline(userInput, 200);
 
+    // Convert User-Message -> User-Morse
     char* morseUserInput = alphabetToMorse(userInput);
     if (!morseUserInput) {
         std::cerr << "Error converting input to Morse code." << std::endl;
@@ -615,17 +696,22 @@ int main()
         return 1;
     }
 
+    // Print The Morse Code Interpretation Of User's Message
     std::cout << morseUserInput << std::endl;
 
     WINDOW_AUDIOWAVES audioWindow(800, 800);
 
+    // Launch Off A Thread To Listen To The Current Audio Output Of The System
     WAVEFORMATEX wfx;
     std::thread captureThread(CaptureAudio, &wfx, &audioWindow);
 
+    // Ensure The Capture Thread Starts First
     std::this_thread::sleep_for(std::chrono::milliseconds(7500));
 
+    // Now Play Our Noise After Listener Is Ready
     playMorseSound(morseUserInput);
 
+    // After Noise, Wait To Join Our Listening Thread Before Closing
     captureThread.join();
 
     delete[] userInput;

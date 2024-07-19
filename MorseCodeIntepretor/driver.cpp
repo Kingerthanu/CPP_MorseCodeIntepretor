@@ -2,20 +2,19 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <windows.h>
-#include <mmdeviceapi.h>
-#include <audiopolicy.h>
-#include <endpointvolume.h>
 #include <chrono>
 #include <thread>
-#include <mmsystem.h>
 #include "Vertex_Array.h"
 #include "shader.h"
 #include <mutex>
 #include <signal.h>
 #include <vector>
-#include <cmath>
 #include <atomic>
 #include <string>
+#include <mmreg.h>
+#include <mmdeviceapi.h>
+#include <endpointvolume.h>
+#include <Audioclient.h>
 
 // Tell During Compile-Time For Compiler To Swap Defs Out With Literal
 #define PI 3.141592653589793238
@@ -27,11 +26,14 @@
 #define THRESHOLD 0.4
 #define REFTIMES_PER_SEC  10000000
 
-// Morse Timing Constants
-static const unsigned int dotWait = 70;                 // 70ms Wait Dot Single Unit/Dot Wait Time
-static const unsigned int dashWait = dotWait * 3;       // 3 * Single Unit Wait Time
-static const unsigned int spaceWait = dashWait;         // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
+// Morse Timing Constants     
+#define dotWait 70  // 70ms Wait Dot Single Unit/Dot Wait Time
+#define dashWait (dotWait * 3)  // 3 * Single Unit Wait Time
+#define spaceWait (dashWait)  // 3 * Single Unit Wait Time (Two Spaces Between Words, 6 Units Of Wait Time)
+
+// Help Link Our Seperate Processes Together To A Graceful Closure
 std::atomic<bool> stopThreads(false);
+
 
 
 // Preconditions:
@@ -68,6 +70,7 @@ void enlargeList(char*& toEnlargen, unsigned int& oldSize, const char* toInsert,
     oldSize = newSize;
 
 }
+
 
 // Preconditions:
 //   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep
@@ -139,6 +142,13 @@ char morseToAlphabet(const std::string& morse)
 }
 
 
+// Preconditions:
+//   1.) Frequency Is Played At A Baseline Amplitude of 0.8f [0.7f, 0.9f]
+//   2.) sampleRate Is The Client's Current Device Rate
+//   3.) Audio Buffer Samples Are Utilizing IEEE Floats [-1.0f, 1.0f]
+// Postconditions:
+//   1.) Will Emit A Sine Wave At Volume amplitude With frequency At A Per-Second Buffer Size Of sampleRate
+//   2.) Exponential Decay For Last 10ms Of Any Sine Wave (Bring 0.8f Baseline Back Down To 0.0f At End Of Sound)
 void playSineWave(double frequency, double durationMs, int sampleRate) 
 {
 
@@ -260,6 +270,7 @@ void playMorseSound(const char* morseCode)
 
 }
 
+
 // Preconditions:
 //   1.) Morse Code Language: '.' -> short beep   |   '-' -> long beep
 //   2.) Expects Input To Be Purely AlphaNumeric
@@ -341,6 +352,10 @@ char* alphabetToMorse(char*& toConvert)
 }
 
 
+// Preconditions:
+//   1.) Called Using Ctrl + C Interrupt Signal
+// Postconditions:
+//   1.) Tell All Thread Loops To Begin Their Cleanups
 void signalShutdown(int) 
 {
 
@@ -350,8 +365,13 @@ void signalShutdown(int)
 
 }
 
+
+// Invariants:
+//   1.) GLSL Window Will Only Render A New Frame Through RenderDiscrete(...)
+//   2.) Expected To Be Used As A Reactionary Window (Updates When Something NEW Is Present [I.E. New Audio Buffer Data])
 class WINDOW_AUDIOWAVES 
 {
+
     private:
         // Low-Level ID's Of Vertex Array And Vertex Buffer For Window Rendering
         GLuint VAO, VBO;
@@ -369,7 +389,13 @@ class WINDOW_AUDIOWAVES
         const float _circleRadius = 0.65f;
 
 
-        // Function To Generate Vertices For A Segmented Circle
+
+        // Preconditions:
+        //   1.) segmentCount Is Amount Of Individual Vertexes Making Up Circle
+        //   2.) centerX & centerY Are In The [0.0f, 2.0f] Coordinate Plane
+        //   3.) audioData Is The Data Buffer Holding Our Audio Samples
+        // Postconditions:
+        //   1.) Will Return The Vertexes Of The Drawn Circle At Origin (centerX, centerY) In Same Coordinate Plane [0.0f, 2.0f]
         std::vector<Vertex> generateSegmentedCircle(const float& centerX, const float& centerY, const float* audioData, const UINT32& segmentCount) 
         {
 
@@ -399,6 +425,13 @@ class WINDOW_AUDIOWAVES
         }
 
     public:
+        // Preconditions:
+        //   1.) newWidth & newHeight Will Be The OpenGL Rendering GLSL Window's Dimensions In Pixels
+        //   2.) GLSL Window Will Be Un-Interactable
+        // Postconditions:
+        //   1.) Will Instantiate A New GLSL Window Of Dimensions, newWidth x newHeight
+        //   2.) Window Will Be Initialized As A Black Empty Window
+        //   3.) Window Will Have No Active Thread
         WINDOW_AUDIOWAVES(const unsigned int& newWidth, const unsigned int& newHeight) 
         {
 
@@ -443,6 +476,14 @@ class WINDOW_AUDIOWAVES
 
         }
 
+
+        // Preconditions:
+        //   1.) audioData Is Of [-1.0f, 1.0f] Floats
+        //   2.) length Is The Frame Count In audioData
+        //   3.) No Thread Is Currently Contextualized In Our Window
+        // Postconditions:
+        //   1.) Will Clean Back-Frame And Render The Segmented Circle Using The audioData As Offsets From Baseline Radius
+        //   2.) Will Acquire Context And Give Back Context During Call
         void RenderDiscrete(const float* audioData, const UINT32 length) 
         {
 
@@ -471,6 +512,11 @@ class WINDOW_AUDIOWAVES
 
         }
 
+
+        // Preconditions:
+        //   1.) Will Be A Event-Driven Called Function
+        // Postconditions:
+        //   1.) Will Tell OpenGL That Our Renderable Canvas Is Of width & height Now
         static void resize_callback(GLFWwindow* window, int width, int height) 
         {
 
@@ -479,6 +525,10 @@ class WINDOW_AUDIOWAVES
 
         }
 
+        // Preconditions:
+        //   1.) VAO & VBO Are Currently Instantiated Buffers
+        // Postconditions:
+        //   1.) Will Release All GLSL/OpenGL Data
         ~WINDOW_AUDIOWAVES() 
         {
 
@@ -487,8 +537,14 @@ class WINDOW_AUDIOWAVES
             glfwDestroyWindow(this->_WINDOW);
 
         }
+
 };
 
+
+// Preconditions:
+//   1.) pDevice Is The Current Endpoint Device Of The Client In Which We Are Communicating Across
+// Postconditions:
+//   1.) Will Return The Max Float-Value That Our Endpoint Will Consider (I.E. [0.0f, 1.0f])
 float getNormalizationFactor(IMMDevice* pDevice) 
 {
 
@@ -514,6 +570,11 @@ float getNormalizationFactor(IMMDevice* pDevice)
 
 }
 
+
+// Preconditions:
+//   1.) pDevice Is The Current Endpoint Device Of The Client In Which We Are Communicating Across
+// Postconditions:
+//   1.) Will Return The Current Master Volume Of Our Clients Session (A Scalar Of [0.0f, 1.0f] Which Symbolizes How Audio Will Change Based On Overall System Volume)
 float getMasterVolumeLevel(IMMDevice* pDevice) 
 {
 
@@ -691,6 +752,7 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
     // If We Messed Up Initilization With Improper Request Duration
     if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) 
     {
+        std::cout << "Not Aligned..\n";
         // Grab The Buffer Size
         UINT32 nFrames;
         hr = pAudioClient->GetBufferSize(&nFrames);
@@ -856,6 +918,7 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
 
     return hr;
 }
+
 
 int main()
 {

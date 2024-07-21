@@ -160,7 +160,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
     float* buffer = new float[samplesCount];
 
     // Duration Of The Fade-Out In Milliseconds
-    double fadeOutDurationMs = 10;
+    double fadeOutDurationMs = 25;
     int fadeOutSamplesCount = static_cast<int>((fadeOutDurationMs / 1000.0) * sampleRate);
 
     // Create Each Audio-Data Frame (Entry In Array)
@@ -784,7 +784,7 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
         // Initilize A Listening Port On Our Client's Audio Session With Our Endpoint; Listening On The Endpoint For Its Inputted Audio Requests
         hr = pAudioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            AUDCLNT_STREAMFLAGS_LOOPBACK,
             hnsRequestedDuration,
             0,
             pwfx,
@@ -802,6 +802,19 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
         printf("Unable to get capture client: %x\n", hr);
         return hr;
     }
+
+
+    HANDLE hCaptureEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (hCaptureEvent == NULL) {
+        printf("Unable to create capture event handle\n");
+        return E_FAIL;
+    }
+    hr = pAudioClient->SetEventHandle(hCaptureEvent);
+    if (FAILED(hr)) {
+        printf("Unable to set event handle: %x\n", hr);
+        return hr;
+    }
+
 
     // Start Listening..
     hr = pAudioClient->Start();

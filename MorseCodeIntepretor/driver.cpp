@@ -175,7 +175,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
         {
             // Our Fade Out Factor Is Based Upon How Long Into The Fade-Out We Are ( End i < Start i )
             float fadeOutFactor = static_cast<float>(samplesCount - i) / fadeOutSamplesCount;
-            buffer[i] *= exp(-21.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
+            buffer[i] *= exp(-13.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
         }
     }
 
@@ -386,7 +386,7 @@ class WINDOW_AUDIOWAVES
         std::mutex contextWand;
 
         // Base-Line Radius Of Audio-Wave Circle
-        const float _circleRadius = 0.65f;
+        const float _circleRadius = 0.45f;
 
 
 
@@ -470,15 +470,15 @@ class WINDOW_AUDIOWAVES
             glfwSwapBuffers(this->_WINDOW);
             glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
 
-            // Generate and bind the VAO
+            // Generate And Bind The VAO
             glGenVertexArrays(1, &VAO);
             glBindVertexArray(VAO);
 
-            // Generate and bind the VBO
+            // Generate And Bind The VBO
             glGenBuffers(1, &VBO);
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
         
-            // Link vertex attributes
+            // Link Vertex Attributes
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 2));
@@ -522,6 +522,7 @@ class WINDOW_AUDIOWAVES
 
             // Swap the front and back buffers
             glfwSwapBuffers(this->_WINDOW);
+            glfwPollEvents();
             glfwMakeContextCurrent(nullptr);
 
         }
@@ -629,7 +630,7 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
 {
 
     // Scale Our Threshold Based On The Current Max Volume; Fast Sensitivity-Decay If Lower Volume
-    float scaledThreshold =( (THRESHOLD * masterVolume) / (5.575f - (masterVolume * 4.575f)));
+    float scaledThreshold =( (THRESHOLD * masterVolume) / (5.075f - (masterVolume * 4.075f)));
     //std::cout << scaledThreshold << '\n';
     
     // Launch Off Worker Thread To Render Current Buffer Data
@@ -748,7 +749,8 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
     props.eCategory = AudioCategory_Other;
     props.Options = AUDCLNT_STREAMOPTIONS_RAW;
     hr = pAudioClient->SetClientProperties(&props);
-    if (FAILED(hr)) {
+    if (FAILED(hr)) 
+    {
         printf("Unable to set client properties: %x\n", hr);
         return hr;
     }
@@ -798,7 +800,7 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
         // Initilize A Listening Port On Our Client's Audio Session With Our Endpoint; Listening On The Endpoint For Its Inputted Audio Requests
         hr = pAudioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_LOOPBACK,
+            AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
             hnsRequestedDuration,
             0,
             pwfx,
@@ -812,19 +814,22 @@ HRESULT CaptureAudio(WAVEFORMATEX* pwfx, WINDOW_AUDIOWAVES* audioWindow)
 
     // Grab The Listener On Our Endpoint
     hr = pAudioClient->GetService(__uuidof(IAudioCaptureClient), (void**)&pCaptureClient);
-    if (FAILED(hr)) {
+    if (FAILED(hr)) 
+    {
         printf("Unable to get capture client: %x\n", hr);
         return hr;
     }
 
-
+    // Override The Unneccessary Default Event Callback
     HANDLE hCaptureEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (hCaptureEvent == NULL) {
+    if (hCaptureEvent == NULL) 
+    {
         printf("Unable to create capture event handle\n");
         return E_FAIL;
     }
     hr = pAudioClient->SetEventHandle(hCaptureEvent);
-    if (FAILED(hr)) {
+    if (FAILED(hr)) 
+    {
         printf("Unable to set event handle: %x\n", hr);
         return hr;
     }
@@ -976,7 +981,7 @@ int main()
     std::thread captureThread(CaptureAudio, &wfx, &audioWindow);
 
     // Ensure The Capture Thread Starts First
-    std::this_thread::sleep_for(std::chrono::milliseconds(7500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
     // Now Play Our Noise After Listener Is Ready
     playMorseSound(morseUserInput);

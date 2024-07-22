@@ -41,5 +41,7 @@ Using A Pattern-Based Algorithm Was Attempted, But Many Difficulties Arise As Au
 
 ![2024-07-2119-33-35-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/83e9781b-2f19-4607-8ec0-0f83886a2c67)
 
+![2024-07-2120-38-22-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/647d79dd-7f88-405a-bc76-610d226ca68b)
+
 
 <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59"> <img src="https://github.com/Kingerthanu/CPP_MorseCodeIntepretor/assets/76754592/3cb63ad6-2fc7-4b4b-9fa8-142e78124d24" alt="Cornstarch <3" width="75" height="59">

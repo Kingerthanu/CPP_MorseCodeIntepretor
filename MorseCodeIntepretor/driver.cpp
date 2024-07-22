@@ -446,13 +446,27 @@ class WINDOW_AUDIOWAVES
                 glfwTerminate();
                 return;
             }
+
+            // Get Primary Monitor's Video Mode
+            const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+            // Set The Window's Position On Users Screen By Pixel Position
+            glfwSetWindowPos(this->_WINDOW, ( (mode->width - newWidth) / 2 ), ((mode->height - newHeight) / 2));
+
+            // Tell Our Thread It's Owning This Window For Now For API Calls..
             glfwMakeContextCurrent(this->_WINDOW);
+
+            // Tell Glad To Load OpenGL On Our Thread's Current Contextualized GLSL Window
             gladLoadGL();
+
+            // Will Render The Coordinates On The Window We Give It Based On Its Code
             this->contextShader = Shader("default.vert", "default.frag");
             this->contextShader.Activate();
 
+            // When We Clear The Screen Clear It With Black At Full Alpha
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
+
             glfwSwapBuffers(this->_WINDOW);
             glfwSetFramebufferSizeCallback(this->_WINDOW, resize_callback);
 
@@ -615,7 +629,7 @@ void processAudioData(const float* data, UINT32& length, bool& signalDetected, s
 {
 
     // Scale Our Threshold Based On The Current Max Volume; Fast Sensitivity-Decay If Lower Volume
-    float scaledThreshold =( (THRESHOLD * masterVolume) / (4.575f - (masterVolume * 3.575f)));
+    float scaledThreshold =( (THRESHOLD * masterVolume) / (5.575f - (masterVolume * 4.575f)));
     //std::cout << scaledThreshold << '\n';
     
     // Launch Off Worker Thread To Render Current Buffer Data

@@ -160,7 +160,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
     float* buffer = new float[samplesCount];
 
     // Duration Of The Fade-Out In Milliseconds
-    double fadeOutDurationMs = 25;
+    double fadeOutDurationMs = 30;
     int fadeOutSamplesCount = static_cast<int>((fadeOutDurationMs / 1000.0) * sampleRate);
 
     // Create Each Audio-Data Frame (Entry In Array)
@@ -175,7 +175,7 @@ void playSineWave(double frequency, double durationMs, int sampleRate)
         {
             // Our Fade Out Factor Is Based Upon How Long Into The Fade-Out We Are ( End i < Start i )
             float fadeOutFactor = static_cast<float>(samplesCount - i) / fadeOutSamplesCount;
-            buffer[i] *= exp(-13.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
+            buffer[i] *= exp(-21.0f * (1.0f - fadeOutFactor)); // More aggressive exponential falloff
         }
     }
 
